@@ -242,7 +242,7 @@ func containsClass(classAttr, targetClass string) bool {
 func main() {
 	Crawler := NewCrawler()
 	Crawler.SelectorClass = "PageList-items-item"
-	Crawler.Threads = 50
+	Crawler.Threads = 1
 	crawledData, _ := Crawler.Crawl("https://apnews.com/hub/earthquakes")
 	fmt.Println("Total: ", len(crawledData))
 }
