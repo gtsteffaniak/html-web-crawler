@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: 1.22.0
-      - run: cd go && go test -race -v ./...
+      - run: go test -race -v ./...
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -25,7 +25,6 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          working-directory: go
           version: v1.58
   format:
     runs-on: ubuntu-latest
@@ -34,7 +33,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: 1.22.0
-      - run: cd go && go fmt ./...
+      - run: go fmt ./...
 
   push_pr_to_registry:
     name: Push PR
@@ -65,8 +64,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./go
-          file: ./go/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
