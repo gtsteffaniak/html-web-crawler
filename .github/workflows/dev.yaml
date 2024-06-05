@@ -4,8 +4,53 @@ on:
   push:
     branches:
       - 'dev_v*'
+    tags:
+      - '*'
+
+permissions:
+  contents: write
 
 jobs:
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.2
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.PAT }}
+          tag_name: ${{ steps.extract_branch.outputs.branch }}
+          prerelease: false
+          draft: false
+          generate_release_notes: true
+          name: ${{ steps.extract_branch.outputs.branch }}
+  update_relase:
+    name: update tag
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.ref, 'refs/tags/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
   test:
     runs-on: ubuntu-latest
     steps:

@@ -33,7 +33,6 @@ jobs:
           draft: false
           generate_release_notes: true
           name: ${{ steps.extract_branch.outputs.branch }}
-
   test:
     runs-on: ubuntu-latest
     steps:
