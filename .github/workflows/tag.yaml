@@ -2,7 +2,7 @@ name: tag
 
 on:
   workflow_run:
-    workflows: ["tag"]
+    workflows: ["dev"]
     types: [completed]
 
 permissions:
