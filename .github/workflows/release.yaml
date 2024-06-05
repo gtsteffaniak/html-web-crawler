@@ -22,13 +22,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: 1.22.2
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          version: ${{ steps.extract_branch.outputs.branch }}
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
