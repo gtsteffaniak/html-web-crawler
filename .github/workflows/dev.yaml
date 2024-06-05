@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - 'dev_v*'
+    tags:
+      - '*'
 
 permissions:
   contents: write
@@ -31,6 +33,12 @@ jobs:
           draft: false
           generate_release_notes: true
           name: ${{ steps.extract_branch.outputs.branch }}
+  update_relase:
+    name: update tag
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.ref, 'refs/tags/v')
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
