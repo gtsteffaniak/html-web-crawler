@@ -1,7 +1,9 @@
 name: tag
 
 on:
-  create:
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
