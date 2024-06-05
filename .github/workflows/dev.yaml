@@ -37,6 +37,7 @@ jobs:
     name: update tag
     runs-on: ubuntu-latest
     if: startsWith(github.event.ref, 'refs/tags/v')
+    steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Run GoReleaser
