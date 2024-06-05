@@ -12,7 +12,7 @@ The decision to opt for Python over Go is an interesting topic which I intend to
 
 First, install or download the program
 ```
-go install github.com/gtsteffaniak/html-web-crawler/crawler@latest
+go install github.com/gtsteffaniak/html-web-crawler@latest
 ```
 
 Make sure your go bin is in your path. Then, run with the commands
@@ -47,7 +47,7 @@ Options:
 
 Note: you can also see [cmd.go](cmd/cmd.go) as an example.
 
-first add to imports
+First, add to imports
 ```
 import (
     "github.com/gtsteffaniak/html-web-crawler/crawler"
