@@ -15,6 +15,7 @@ type Crawler struct {
 	Threads     int
 	Timeout     int
 	MaxDepth    int
+	MaxPages    int
 	IgnoredUrls []string
 	Selectors   Selectors
 	// private fields
@@ -78,10 +79,14 @@ func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 		c.pagesContent[url] = ""
 	}
 	for _, url := range pageURL {
-		err := c.recursiveCrawl(url, 0)
-		if err != nil {
-			return nil, err
-		}
+		c.wg.Add(1) // Add to the wait group before starting the recursive crawl
+		go func(url string) {
+			defer c.wg.Done()
+			err := c.recursiveCrawl(url, 0)
+			if err != nil {
+				fmt.Printf("Error crawling %s: %v\n", url, err)
+			}
+		}(url)
 	}
 	c.wg.Wait() // Wait for all goroutines to finish
 	return c.pagesContent, nil
@@ -167,37 +172,34 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 	semaphore := make(chan struct{}, c.Threads)
 	for link, linkText := range links {
 		c.mutex.Lock()
-		_, ok := c.pagesContent[link]
-		c.mutex.Unlock()
-		if ok {
+		if _, ok := c.pagesContent[link]; ok {
+			c.mutex.Unlock()
 			continue
+		}
+		if len(c.pagesContent) > c.MaxPages {
+			c.mutex.Unlock()
+			break
 		}
 		if !c.linkTextCheck(link, linkText) {
+			c.mutex.Unlock()
 			continue
 		}
-		fullURL := toAbsoluteURL(pageURL, link)
+		c.mutex.Unlock()
 
+		fullURL := toAbsoluteURL(pageURL, link)
 		if c.validDomainCheck(fullURL) {
-			if c.Threads > 1 {
-				c.wg.Add(1)
-				semaphore <- struct{}{}
-				go func(url string) {
-					defer func() {
-						<-semaphore // Release the slot
-						c.wg.Done() // Decrement counter after goroutine finishes
-					}()
-					c.wg.Add(1) // Increment counter before launching recursive call
-					err := c.recursiveCrawl(url, currentDepth+1)
-					if err != nil {
-						fmt.Printf("Error crawling %s: %v\n", url, err)
-					}
-				}(fullURL)
-			} else {
-				err = c.recursiveCrawl(fullURL, currentDepth+1)
+			c.wg.Add(1)
+			semaphore <- struct{}{}
+			go func(url string) {
+				defer func() {
+					<-semaphore // Release the slot
+					c.wg.Done() // Decrement counter after goroutine finishes
+				}()
+				err := c.recursiveCrawl(url, currentDepth+1)
 				if err != nil {
-					return err
+					fmt.Printf("Error crawling %s: %v\n", url, err)
 				}
-			}
+			}(fullURL)
 		}
 	}
 

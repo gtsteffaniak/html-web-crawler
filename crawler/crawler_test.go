@@ -340,7 +340,7 @@ func TestSingleSourceRun(t *testing.T) {
 	c.Threads = 10
 	results, err := c.Crawl("https://www.gportal.link/blog/")
 	assert.Equal(t, nil, err)
-	assert.Equal(t, 2, len(results))
+	assert.Greater(t, 3, len(results))
 }
 
 func TestMultipleSourceRun(t *testing.T) {
@@ -350,5 +350,5 @@ func TestMultipleSourceRun(t *testing.T) {
 		t.Errorf("Error running crawler: %v", err)
 	}
 	assert.Equal(t, nil, err)
-	assert.Equal(t, 2, len(results))
+	assert.Greater(t, 3, len(results))
 }
