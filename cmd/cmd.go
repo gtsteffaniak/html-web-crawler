@@ -21,6 +21,7 @@ var (
 	linkTextPatterns = flag.String("linkTextPatterns", "", "Comma separated list of link text to crawl (inclusive with urlPatterns)")
 	urlPatterns      = flag.String("urlPatterns", "", "Comma separated list of URL patterns to crawl (inclusive with linkTextPatterns)")
 	contentPatterns  = flag.String("contentPatterns", "", "Comma separated list terms that must exist in page contents")
+	IgnoredUrls      = flag.String("ignoredUrls", "", "Comma separated list of URLs to ignore")
 	help             = flag.Bool("help", false, "Show help message")
 )
 
