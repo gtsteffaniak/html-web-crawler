@@ -3,7 +3,7 @@ name: release
 on:
   push:
     branches:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
   contents: write
@@ -40,14 +40,14 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: 1.22.0
-      - run: go test -race -v ./...
+      - run: go test -timeout 30s -race -v ./...
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:

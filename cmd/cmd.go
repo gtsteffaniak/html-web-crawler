@@ -11,9 +11,11 @@ import (
 
 // flags for command-line arguments
 var (
-	threads          = flag.Int("threads", 1, "Number of concurrent urls to check when crawling")
-	timeout          = flag.Int("timeout", 10, "Timeout in seconds for each HTTP request")
-	maxDepth         = flag.Int("maxDepth", 1, "Maximum depth for pages to crawl, 1 will only return links from the given URLs")
+	threads  = flag.Int("threads", 1, "Number of concurrent urls to check when crawling")
+	timeout  = flag.Int("timeout", 10, "Timeout in seconds for each HTTP request")
+	maxDepth = flag.Int("maxDepth", 1, "Maximum depth for pages to crawl, 1 will only return links from the given URLs")
+	maxLinks = flag.Int("maxLinks", 0, "Maximum number of links to crawl, 0 will crawl all links found.")
+
 	urls             = flag.String("urls", "", "Comma separated URLs to crawl (required). ie \"https://example.com,https://example2.com\"")
 	classes          = flag.String("classes", "", "Comma separated list of classes inside the html that links need to be inside to crawl (inclusive with ids)")
 	ids              = flag.String("ids", "", "Comma separated list of ids inside the html that links need to be inside to crawl  (inclusive with classes)")
@@ -85,6 +87,9 @@ func Execute() (map[string]string, error) {
 	}
 	if *contentPatterns != "" {
 		crawler.Selectors.ContentPatterns = strings.Split(*contentPatterns, ",")
+	}
+	if *maxLinks > 0 {
+		crawler.MaxLinks = *maxLinks
 	}
 	// Split the URLs by comma
 	urls := strings.Split(*urls, ",")
