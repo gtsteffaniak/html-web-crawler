@@ -12,10 +12,11 @@ import (
 )
 
 type Crawler struct {
-	Threads   int
-	Timeout   int
-	MaxDepth  int
-	Selectors Selectors
+	Threads     int
+	Timeout     int
+	MaxDepth    int
+	IgnoredUrls []string
+	Selectors   Selectors
 	// private fields
 	pagesContent map[string]string
 	mutex        sync.Mutex
@@ -23,9 +24,12 @@ type Crawler struct {
 }
 
 type Selectors struct {
-	Classes []string
-	Ids     []string
-	Domains []string
+	Classes          []string
+	Ids              []string
+	Domains          []string
+	UrlPatterns      []string
+	LinkTextPatterns []string
+	ContentPatterns  []string
 }
 
 func NewCrawler() *Crawler {
@@ -34,10 +38,14 @@ func NewCrawler() *Crawler {
 		Threads:      1,
 		Timeout:      10,
 		MaxDepth:     1,
+		IgnoredUrls:  []string{},
 		Selectors: Selectors{
-			Classes: []string{},
-			Ids:     []string{},
-			Domains: []string{},
+			LinkTextPatterns: []string{},
+			UrlPatterns:      []string{},
+			ContentPatterns:  []string{},
+			Classes:          []string{},
+			Ids:              []string{},
+			Domains:          []string{},
 		},
 	}
 }
@@ -65,6 +73,10 @@ func FetchHTML(pageURL string) (string, error) {
 
 // Crawl is the public method that initializes the recursive crawling.
 func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
+	c.wg = sync.WaitGroup{}
+	for _, url := range c.IgnoredUrls {
+		c.pagesContent[url] = ""
+	}
 	for _, url := range pageURL {
 		err := c.recursiveCrawl(url, 0)
 		if err != nil {
@@ -95,6 +107,18 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 		return err
 	}
 
+	if currentDepth > 0 && len(c.Selectors.ContentPatterns) > 0 {
+		matchContentPattern := false
+		for _, pattern := range c.Selectors.ContentPatterns {
+			if strings.Contains(htmlContent, pattern) {
+				matchContentPattern = true
+			}
+		}
+		if !matchContentPattern {
+			return nil
+		}
+	}
+
 	c.mutex.Lock()
 	c.pagesContent[pageURL] = htmlContent
 	c.mutex.Unlock()
@@ -106,14 +130,31 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 
 	// Limit the number of concurrent goroutines based on Threads
 	semaphore := make(chan struct{}, c.Threads)
-	for _, link := range links {
+	for link, linkText := range links {
 		c.mutex.Lock()
 		if _, ok := c.pagesContent[link]; ok {
 			c.mutex.Unlock()
 			continue
 		}
-		fullURL := toAbsoluteURL(pageURL, link)
+		if len(c.Selectors.UrlPatterns) > 0 || len(c.Selectors.LinkTextPatterns) > 0 {
+			validLinkPattern := false
+			for _, pattern := range c.Selectors.UrlPatterns {
+				if strings.Contains(link, pattern) {
+					validLinkPattern = true
+				}
+			}
+			for _, pattern := range c.Selectors.LinkTextPatterns {
+				if strings.Contains(linkText, pattern) {
+					validLinkPattern = true
+				}
+			}
+			if !validLinkPattern {
+				c.mutex.Unlock()
+				continue
+			}
+		}
 
+		fullURL := toAbsoluteURL(pageURL, link)
 		c.mutex.Unlock()
 		validDomain := len(c.Selectors.Domains) == 0
 		for _, domain := range c.Selectors.Domains {
@@ -123,6 +164,7 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 		}
 		if validDomain && strings.HasPrefix(fullURL, "https://") {
 			if c.Threads > 1 {
+				c.wg.Add(1)
 				semaphore <- struct{}{}
 				go func(url string) {
 					defer func() {
@@ -175,15 +217,14 @@ func containsSelectors(ids []string, classes []string, n *html.Node) bool {
 }
 
 // extractLinks extracts links within the specified element by id or class from the HTML content.
-func extractLinks(htmlContent string, targetClasses, targetIDs []string) ([]string, error) {
+func extractLinks(htmlContent string, targetClasses, targetIDs []string) (map[string]string, error) {
 	doc, err := html.Parse(strings.NewReader(htmlContent))
 	if err != nil {
 		return nil, err
 	}
-	var links []string
+	links := make(map[string]string)
 	var f func(*html.Node)
 	inTargetElement := false
-
 	f = func(n *html.Node) {
 		if n.Type == html.ElementNode {
 			if containsSelectors(targetIDs, targetClasses, n) {
@@ -191,9 +232,16 @@ func extractLinks(htmlContent string, targetClasses, targetIDs []string) ([]stri
 				defer func() { inTargetElement = false }() // reset to false after leaving the element
 			}
 			if inTargetElement && n.Data == "a" {
+				var linkText string
 				for _, attr := range n.Attr {
 					if attr.Key == "href" {
-						links = append(links, attr.Val)
+						linkURL := attr.Val
+						for c := n.FirstChild; c != nil; c = c.NextSibling {
+							if c.Type == html.TextNode {
+								linkText += c.Data
+							}
+						}
+						links[linkURL] = strings.TrimSpace(linkText)
 					}
 				}
 			}
@@ -216,13 +264,10 @@ func toAbsoluteURL(base, link string) string {
 	if u.IsAbs() {
 		return link
 	}
-
-	baseURL, err := url.Parse(base)
-	if err != nil {
-		return link
+	if strings.HasPrefix(link, "/") {
+		base = "https://" + getDomain(base) + link
 	}
-
-	return baseURL.ResolveReference(u).String()
+	return base
 }
 
 // getDomain returns the domain of a URL.

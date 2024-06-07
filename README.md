@@ -1,4 +1,4 @@
-# html-web-crawler
+# HTML Web Crawler
 
 Created as a Golang library, this web crawler was initially conceived in Python -- a language I deemed suitable for these type of tasks. However, upon realizing I would need multithreaded processing to make it fast enough, I quickly realized it would more aptly benefit from go's native concurrency.
 
@@ -6,9 +6,9 @@ In stark contrast to the Python implementation, the Go counterpart -- even witho
 
 The decision to opt for Python over Go is an interesting topic which I intend to delve into extensively on my blog. In the meantime, I have this as a library, ready to integrate it seamlessly into another of my projects.
 
-# How to use (go)
+# How to use
 
-## cli 
+## CLI
 
 First, install or download the program
 ```
@@ -17,7 +17,7 @@ go install github.com/gtsteffaniak/html-web-crawler@latest
 
 Make sure your go bin is in your path. Then, run with the commands
 ```
-html-web-crawler --urls https://apnews.com/ 
+html-web-crawler --urls https://apnews.com/
 ```
 
 Use `--help` to see more options:
@@ -43,26 +43,28 @@ Options:
         Comma separated URLs to crawl (required)
 ```
 
-## include as a module in your go program
+## Include as a module in your go program
 
-Note: you can also see [cmd.go](cmd/cmd.go) as an example.
+Note: you can also see [ai-earthquake-tracker](https://github.com/gtsteffaniak/ai-earthquake-tracker) as an example.
 
-First, add to imports
 ```
+package main
+
 import (
-    "github.com/gtsteffaniak/html-web-crawler/crawler"
+	"fmt"
+
+	"github.com/gtsteffaniak/html-web-crawler/crawler"
 )
-```
-Then initialize with whatever options you want
-```
-Crawler := NewCrawler()
-Crawler.Selector.Classes = []string{"PageList-items-item"} # entire html document by default
-Crawler.Threads = 50                          # single threaded by default
 
-```
-
-Lastly, run results which return `map[string]string` with data
-```
-crawledData, _ := Crawler.Crawl("https://apnews.com/hub/earthquakes") # can  have multipe urls
-fmt.Println("Total: ", len(crawledData))
+func main() {
+	Crawler := crawler.NewCrawler()
+	// add crawling html selector classes
+	Crawler.Selectors.Classes = []string{"PageList-items-item"}
+	// Allow 50 consecutive pages to crawl at a time
+	Crawler.Threads = 50
+	// Crawl starting with a given url
+	crawledData, _ := Crawler.Crawl("https://apnews.com/hub/earthquakes")
+	// Print/Process the crawled data
+	fmt.Println("Total: ", len(crawledData))
+}
 ```
