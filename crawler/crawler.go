@@ -87,6 +87,42 @@ func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 	return c.pagesContent, nil
 }
 
+func (c *Crawler) linkTextCheck(link, linkText string) bool {
+	if len(c.Selectors.UrlPatterns) == 0 && len(c.Selectors.LinkTextPatterns) == 0 {
+		return true
+	}
+	for _, pattern := range c.Selectors.UrlPatterns {
+		if strings.Contains(link, pattern) {
+			return true
+		}
+	}
+	for _, pattern := range c.Selectors.LinkTextPatterns {
+		if strings.Contains(linkText, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Crawler) validDomainCheck(fullURL string) bool {
+	if !(strings.HasPrefix(fullURL, "https://") || strings.HasPrefix(fullURL, "http://")) {
+		return false
+	}
+	domain := getDomain(fullURL)
+	if domain == "" {
+		return false
+	}
+	if len(c.Selectors.Domains) == 0 {
+		return true
+	}
+	for _, d := range c.Selectors.Domains {
+		if domain == d {
+			return true
+		}
+	}
+	return false
+}
+
 // recursiveCrawl is a private method that performs the recursive crawling, respecting MaxDepth.
 func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 	if currentDepth > c.MaxDepth {
@@ -104,9 +140,8 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 
 	htmlContent, err := FetchHTML(pageURL)
 	if err != nil {
-		return err
+		return nil // return nil on page load error because the site could be down
 	}
-
 	if currentDepth > 0 && len(c.Selectors.ContentPatterns) > 0 {
 		matchContentPattern := false
 		for _, pattern := range c.Selectors.ContentPatterns {
@@ -123,7 +158,7 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 	c.pagesContent[pageURL] = htmlContent
 	c.mutex.Unlock()
 
-	links, err := extractLinks(htmlContent, c.Selectors.Classes, c.Selectors.Ids)
+	links, err := c.extractLinks(htmlContent)
 	if err != nil {
 		return err
 	}
@@ -132,37 +167,17 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 	semaphore := make(chan struct{}, c.Threads)
 	for link, linkText := range links {
 		c.mutex.Lock()
-		if _, ok := c.pagesContent[link]; ok {
-			c.mutex.Unlock()
+		_, ok := c.pagesContent[link]
+		c.mutex.Unlock()
+		if ok {
 			continue
 		}
-		if len(c.Selectors.UrlPatterns) > 0 || len(c.Selectors.LinkTextPatterns) > 0 {
-			validLinkPattern := false
-			for _, pattern := range c.Selectors.UrlPatterns {
-				if strings.Contains(link, pattern) {
-					validLinkPattern = true
-				}
-			}
-			for _, pattern := range c.Selectors.LinkTextPatterns {
-				if strings.Contains(linkText, pattern) {
-					validLinkPattern = true
-				}
-			}
-			if !validLinkPattern {
-				c.mutex.Unlock()
-				continue
-			}
+		if !c.linkTextCheck(link, linkText) {
+			continue
 		}
-
 		fullURL := toAbsoluteURL(pageURL, link)
-		c.mutex.Unlock()
-		validDomain := len(c.Selectors.Domains) == 0
-		for _, domain := range c.Selectors.Domains {
-			if getDomain(fullURL) == domain {
-				validDomain = true
-			}
-		}
-		if validDomain && strings.HasPrefix(fullURL, "https://") {
+
+		if c.validDomainCheck(fullURL) {
 			if c.Threads > 1 {
 				c.wg.Add(1)
 				semaphore <- struct{}{}
@@ -189,11 +204,11 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 	return nil
 }
 
-func containsSelectors(ids []string, classes []string, n *html.Node) bool {
-	if len(ids) == 0 && len(classes) == 0 {
+func (c *Crawler) containsSelectors(n *html.Node) bool {
+	if len(c.Selectors.Ids) == 0 && len(c.Selectors.Classes) == 0 {
 		return true
 	}
-	for _, targetId := range ids {
+	for _, targetId := range c.Selectors.Ids {
 		if targetId == "" {
 			continue
 		}
@@ -203,7 +218,7 @@ func containsSelectors(ids []string, classes []string, n *html.Node) bool {
 			}
 		}
 	}
-	for _, targetClass := range classes {
+	for _, targetClass := range c.Selectors.Classes {
 		if targetClass == "" {
 			continue
 		}
@@ -217,7 +232,7 @@ func containsSelectors(ids []string, classes []string, n *html.Node) bool {
 }
 
 // extractLinks extracts links within the specified element by id or class from the HTML content.
-func extractLinks(htmlContent string, targetClasses, targetIDs []string) (map[string]string, error) {
+func (c *Crawler) extractLinks(htmlContent string) (map[string]string, error) {
 	doc, err := html.Parse(strings.NewReader(htmlContent))
 	if err != nil {
 		return nil, err
@@ -227,7 +242,7 @@ func extractLinks(htmlContent string, targetClasses, targetIDs []string) (map[st
 	inTargetElement := false
 	f = func(n *html.Node) {
 		if n.Type == html.ElementNode {
-			if containsSelectors(targetIDs, targetClasses, n) {
+			if c.containsSelectors(n) {
 				inTargetElement = true
 				defer func() { inTargetElement = false }() // reset to false after leaving the element
 			}
