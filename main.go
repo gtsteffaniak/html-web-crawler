@@ -7,6 +7,10 @@ import (
 )
 
 func main() {
-	crawledData, _ := cmd.Execute()
+	crawledData, err := cmd.Execute()
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return
+	}
 	fmt.Println("Total: ", len(crawledData))
 }
