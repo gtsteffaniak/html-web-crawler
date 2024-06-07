@@ -88,6 +88,9 @@ func Execute() (map[string]string, error) {
 	if *contentPatterns != "" {
 		crawler.Selectors.ContentPatterns = strings.Split(*contentPatterns, ",")
 	}
+	if *maxLinks > 0 {
+		crawler.MaxLinks = *maxLinks
+	}
 	// Split the URLs by comma
 	urls := strings.Split(*urls, ",")
 	return crawler.Crawl(urls...)
