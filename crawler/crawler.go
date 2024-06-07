@@ -15,7 +15,7 @@ type Crawler struct {
 	Threads     int
 	Timeout     int
 	MaxDepth    int
-	MaxPages    int
+	MaxLinks    int
 	IgnoredUrls []string
 	Selectors   Selectors
 	// private fields
@@ -39,6 +39,7 @@ func NewCrawler() *Crawler {
 		Threads:      1,
 		Timeout:      10,
 		MaxDepth:     1,
+		MaxLinks:     0,
 		IgnoredUrls:  []string{},
 		Selectors: Selectors{
 			LinkTextPatterns: []string{},
@@ -139,6 +140,11 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 		c.mutex.Unlock()
 		return nil
 	}
+	if len(c.pagesContent) >= c.MaxLinks && c.MaxLinks != 0 {
+		c.mutex.Unlock()
+		return nil
+	}
+
 	// Update crawledData before recursive calls
 	c.pagesContent[pageURL] = ""
 	c.mutex.Unlock()
@@ -158,11 +164,9 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 			return nil
 		}
 	}
-
 	c.mutex.Lock()
 	c.pagesContent[pageURL] = htmlContent
 	c.mutex.Unlock()
-
 	links, err := c.extractLinks(htmlContent)
 	if err != nil {
 		return err
@@ -172,19 +176,14 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 	semaphore := make(chan struct{}, c.Threads)
 	for link, linkText := range links {
 		c.mutex.Lock()
-		if _, ok := c.pagesContent[link]; ok {
-			c.mutex.Unlock()
+		_, ok := c.pagesContent[link]
+		c.mutex.Unlock()
+		if ok {
 			continue
-		}
-		if len(c.pagesContent) > c.MaxPages {
-			c.mutex.Unlock()
-			break
 		}
 		if !c.linkTextCheck(link, linkText) {
-			c.mutex.Unlock()
 			continue
 		}
-		c.mutex.Unlock()
 
 		fullURL := toAbsoluteURL(pageURL, link)
 		if c.validDomainCheck(fullURL) {

@@ -19,6 +19,7 @@ func TestNewCrawler(t *testing.T) {
 				Threads:      1,
 				Timeout:      10,
 				MaxDepth:     1,
+				MaxLinks:     0,
 				IgnoredUrls:  []string{},
 				Selectors: Selectors{
 					LinkTextPatterns: []string{},
@@ -338,17 +339,19 @@ func TestClassAndIdsSelectors(t *testing.T) {
 func TestSingleSourceRun(t *testing.T) {
 	c := NewCrawler()
 	c.Threads = 10
+	c.MaxLinks = 3
 	results, err := c.Crawl("https://www.gportal.link/blog/")
 	assert.Equal(t, nil, err)
-	assert.Greater(t, 3, len(results))
+	assert.GreaterOrEqual(t, len(results), 3)
 }
 
 func TestMultipleSourceRun(t *testing.T) {
 	c := NewCrawler()
-	results, err := c.Crawl("https://www.apnews.com/")
+	c.MaxLinks = 3
+	results, err := c.Crawl("https://apnews.com/hub/earthquakes", "https://www.bbc.com/")
 	if err != nil {
 		t.Errorf("Error running crawler: %v", err)
 	}
 	assert.Equal(t, nil, err)
-	assert.Greater(t, 3, len(results))
+	assert.GreaterOrEqual(t, len(results), 3)
 }
