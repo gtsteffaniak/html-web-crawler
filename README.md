@@ -27,7 +27,10 @@ html-web-crawler --urls https://apnews.com/
 Use `--help` to see more options:
 
 ```
-Usage: ./html-web-crawler [options] --urls <urls>
+Usage: ./html-web-crawler <command> [options] --urls <urls>
+Commands:
+  collect  Collect data from URLs
+  crawl    Crawl URLs and collect data
 Options:
   -classes string
         Comma separated list of classes inside the html that links need to be inside to crawl (inclusive with ids)
@@ -35,18 +38,26 @@ Options:
         Comma separated list terms that must exist in page contents
   -domains string
         Comma separated list of exact match domains to crawl, e.g. 'ap.com,reuters.com'
+  -excludeDomains string
+        Comma separated list of exact match domains NOT to crawl, e.g. 'ap.com,reuters.com'
+  -filetypes string
+        Comma separated list of filetypes for collection (e.g. 'pdf,docx,doc'), also supports by group name 'images','video','audio','pdf','doc','archive','code','shell','text','json','yaml','font'
   -help
         Show help message
   -ids string
         Comma separated list of ids inside the html that links need to be inside to crawl  (inclusive with classes)
   -ignoredUrls string
         Comma separated list of URLs to ignore
+  -images
+        Include images in the search
   -linkTextPatterns string
         Comma separated list of link text to crawl (inclusive with urlPatterns)
   -maxDepth int
         Maximum depth for pages to crawl, 1 will only return links from the given URLs (default 1)
   -maxLinks int
         Maximum number of links to crawl, 0 will crawl all links found.
+  -searchAny string
+        search string
   -threads int
         Number of concurrent urls to check when crawling (default 1)
   -timeout int
