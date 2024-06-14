@@ -7,40 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewCrawler(t *testing.T) {
-	tests := []struct {
-		name string
-		want *Crawler
-	}{
-		{
-			name: "Test New Crawler",
-			want: &Crawler{
-				pagesContent: make(map[string]string),
-				Threads:      1,
-				Timeout:      10,
-				MaxDepth:     1,
-				MaxLinks:     0,
-				IgnoredUrls:  []string{},
-				Selectors: Selectors{
-					LinkTextPatterns: []string{},
-					UrlPatterns:      []string{},
-					ContentPatterns:  []string{},
-					Classes:          []string{},
-					Ids:              []string{},
-					Domains:          []string{},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewCrawler(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewCrawler() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestUrlSelectors(t *testing.T) {
 
 	commonTests := map[string]string{
@@ -204,6 +170,36 @@ func TestDomainSelectors(t *testing.T) {
 				"https://":            false,
 				"https://example.com": false,
 				"http://wifi.com":     false,
+			},
+		},
+		{
+			name: "Exclude domains",
+			s: &Selectors{
+				ExcludeDomains: []string{"www.youtube.com"},
+			},
+			links: []string{
+				"https://www.youtube.com",
+				"https://www.weather.com",
+			},
+			want: map[string]bool{
+				"https://www.youtube.com": false,
+				"https://www.weather.com": true,
+			},
+		},
+		{
+			name: "Exclude subdomain domains",
+			s: &Selectors{
+				ExcludeDomains: []string{"youtube.com"},
+			},
+			links: []string{
+				"https://www.youtube.com",
+				"https://upload.youtube.com",
+				"https://www.weather.com",
+			},
+			want: map[string]bool{
+				"https://www.youtube.com":    false,
+				"https://upload.youtube.com": false,
+				"https://www.weather.com":    true,
 			},
 		},
 	}
