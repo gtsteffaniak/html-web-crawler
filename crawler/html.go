@@ -8,19 +8,26 @@ import (
 	"strings"
 
 	"golang.org/x/net/html"
+
+	"github.com/gtsteffaniak/html-web-crawler/playwright"
 )
 
 // FetchHTML retrieves the HTML content of the given URL.
-func (c *Crawler) FetchHTML(pageURL string) (string, error) {
-	switch {
-	case len(c.SearchAny) > 0:
-		fmt.Print(".")
-	case c.mode == "collect":
-		// do nothing
-	default:
+func (c *Crawler) FetchHTML(pageURL string, javascriptEnabled bool) (string, error) {
+	switch c.mode {
+	case "crawl":
 		fmt.Println("fetching", pageURL)
+	case "collect":
+		// nothing yet
 	}
+	if javascriptEnabled {
+		return playwright.GetHtmlContent(pageURL)
+	} else {
+		return c.requestPage(pageURL)
+	}
+}
 
+func (c *Crawler) requestPage(pageURL string) (string, error) {
 	resp, err := http.Get(pageURL)
 	if err != nil {
 		return "", err
@@ -111,7 +118,7 @@ func (c *Crawler) extractLinks(htmlContent string) (map[string]string, error) {
 }
 
 // extractLinks extracts links within the specified element by id or class from the HTML content.
-func (c *Crawler) extractItems(htmlContent string) ([]string, error) {
+func (c *Crawler) extractItems(htmlContent, pageUrl string) ([]string, error) {
 	doc, err := html.Parse(strings.NewReader(htmlContent))
 	if err != nil {
 		return nil, err
@@ -135,7 +142,20 @@ func (c *Crawler) extractItems(htmlContent string) ([]string, error) {
 					if !exists {
 						regex = fmt.Sprintf(`([https?:]|\/)[^\s'"]+\.(?:%v)`, i)
 					}
-					items = append(items, regexSearch(regex, htmlString)...)
+					foundItems := regexSearch(regex, htmlString)
+					for _, url := range foundItems {
+						if strings.HasPrefix(url, "http") {
+							split := strings.Split(url, "https://")
+							if len(split) > 1 {
+								// Access the last element using index len(split)-1
+								url = "https://" + split[len(split)-1]
+							}
+							items = append(items, url)
+						} else {
+							fullURL := toAbsoluteURL(pageUrl, url)
+							items = append(items, fullURL)
+						}
+					}
 				}
 			}
 		}

@@ -12,7 +12,6 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
-
 	// Use a type switch to determine the type of crawledData
 	switch data := crawledData.(type) {
 	case []string:

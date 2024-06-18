@@ -66,7 +66,7 @@ func TestExtractItems(t *testing.T) {
 			html: htmlTests,
 			want: map[string][]string{
 				"firstHTML": {
-					"/url/image.png",
+					"https://www.domain.com/url/image.png",
 				},
 				"secondHTML": {},
 				"thirdHTML":  {},
@@ -82,7 +82,7 @@ func TestExtractItems(t *testing.T) {
 			html: htmlTests,
 			want: map[string][]string{
 				"firstHTML": {
-					"/url/image.png",
+					"https://www.domain.com/url/image.png",
 				},
 				"secondHTML": {
 					"https://testing.com/image.jpg",
@@ -100,7 +100,7 @@ func TestExtractItems(t *testing.T) {
 			c.Selectors = *tt.s
 			for key, html := range tt.html {
 				assert.Contains(t, tt.want, key)
-				got, _ := c.extractItems(html)
+				got, _ := c.extractItems(html, "https://www.domain.com")
 				if !reflect.DeepEqual(got, tt.want[key]) {
 					t.Errorf("\nmismatch for %v: \n > got %v,\n > want %v", key, got, tt.want[key])
 				}

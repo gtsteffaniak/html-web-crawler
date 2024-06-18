@@ -26,6 +26,7 @@ var (
 	urlPatterns      = flag.String("urlPatterns", "", "Comma separated list of URL patterns to crawl (inclusive with linkTextPatterns)")
 	contentPatterns  = flag.String("contentPatterns", "", "Comma separated list terms that must exist in page contents")
 	IgnoredUrls      = flag.String("ignoredUrls", "", "Comma separated list of URLs to ignore")
+	jsDepth          = flag.Int("jsDepth", 0, "Depth to use javascript rendering")
 	Images           = flag.Bool("images", false, "Include images in the search")
 	filetypes        = flag.String("filetypes", "", "Comma separated list of filetypes for collection (e.g. 'pdf,docx,doc'), also supports by group name 'images','video','audio','pdf','doc','archive','code','shell','text','json','yaml','font'")
 	help             = flag.Bool("help", false, "Show help message")
@@ -82,6 +83,8 @@ func Execute() (interface{}, error) {
 	c.Threads = *threads
 	c.Timeout = *timeout
 	c.MaxDepth = *maxDepth
+	c.MaxLinks = *maxLinks
+	c.JsDepth = *jsDepth
 	if *ids != "" {
 		c.Selectors.Ids = strings.Split(*ids, ",")
 	}
@@ -105,9 +108,6 @@ func Execute() (interface{}, error) {
 	}
 	if *searchAny != "" {
 		c.SearchAny = strings.Split(*searchAny, ",")
-	}
-	if *maxLinks > 0 {
-		c.MaxLinks = *maxLinks
 	}
 	// Split the URLs by comma
 	urls := strings.Split(*urls, ",")

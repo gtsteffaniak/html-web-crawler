@@ -11,6 +11,7 @@ type Crawler struct {
 	SearchAll   []string
 	IgnoredUrls []string
 	Selectors   Selectors
+	JsDepth     int
 	// private fields
 	pagesContent   map[string]string
 	collectedItems []string
@@ -35,8 +36,9 @@ func NewCrawler() *Crawler {
 		pagesContent: make(map[string]string),
 		Threads:      1,
 		Timeout:      10,
-		MaxDepth:     1,
+		MaxDepth:     2,
 		MaxLinks:     0,
+		JsDepth:      0,
 		SearchAny:    []string{},
 		IgnoredUrls:  []string{},
 		Selectors: Selectors{

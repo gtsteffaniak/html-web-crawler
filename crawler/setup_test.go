@@ -16,8 +16,9 @@ func TestNewCrawler(t *testing.T) {
 				pagesContent: make(map[string]string),
 				Threads:      1,
 				Timeout:      10,
-				MaxDepth:     1,
+				MaxDepth:     2,
 				MaxLinks:     0,
+				JsDepth:      0,
 				SearchAny:    []string{},
 				IgnoredUrls:  []string{},
 				Selectors: Selectors{
