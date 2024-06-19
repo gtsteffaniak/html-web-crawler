@@ -23,15 +23,15 @@ func GetHtmlContent(pageURL string) (string, error) {
 		
 		1. installing chromium and set CHROME_EXECUTABLE path to chromium executable.
 		2. running the "./html-web-cralwer install" command to automatically install.
-		`)
+`)
 	}
 	u := launcher.New().Bin(chromeExec).MustLaunch()
-	page := rod.New().ControlURL(u).MustConnect().MustPage(pageURL)
-	page.WaitStable(time.Microsecond * 10)
+	page := rod.New().ControlURL(u).MustConnect().MustPage(pageURL).Timeout(time.Second)
 	content, err := page.HTML()
 	if err != nil {
 		fmt.Println(err)
 	}
+
 	return string(content), nil
 }
 
