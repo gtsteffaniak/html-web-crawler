@@ -7,81 +7,81 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gtsteffaniak/html-web-crawler/browser"
 	"github.com/gtsteffaniak/html-web-crawler/crawler"
 )
 
-// flags for command-line arguments
-var (
-	threads          = flag.Int("threads", 1, "Number of concurrent urls to check when crawling")
-	timeout          = flag.Int("timeout", 10, "Timeout in seconds for each HTTP request")
-	maxDepth         = flag.Int("maxDepth", 1, "Maximum depth for pages to crawl, 1 will only return links from the given URLs")
-	maxLinks         = flag.Int("maxLinks", 0, "Maximum number of links to crawl, 0 will crawl all links found.")
-	searchAny        = flag.String("searchAny", "", "search string")
-	urls             = flag.String("urls", "", "Comma separated URLs to crawl (required). ie \"https://example.com,https://example2.com\"")
-	classes          = flag.String("classes", "", "Comma separated list of classes inside the html that links need to be inside to crawl (inclusive with ids)")
-	ids              = flag.String("ids", "", "Comma separated list of ids inside the html that links need to be inside to crawl  (inclusive with classes)")
-	domains          = flag.String("domains", "", "Comma separated list of exact match domains to crawl, e.g. 'ap.com,reuters.com'")
-	excludeDomains   = flag.String("excludeDomains", "", "Comma separated list of exact match domains NOT to crawl, e.g. 'ap.com,reuters.com'")
-	linkTextPatterns = flag.String("linkTextPatterns", "", "Comma separated list of link text to crawl (inclusive with urlPatterns)")
-	urlPatterns      = flag.String("urlPatterns", "", "Comma separated list of URL patterns to crawl (inclusive with linkTextPatterns)")
-	contentPatterns  = flag.String("contentPatterns", "", "Comma separated list terms that must exist in page contents")
-	IgnoredUrls      = flag.String("ignoredUrls", "", "Comma separated list of URLs to ignore")
-	jsDepth          = flag.Int("jsDepth", 0, "Depth to use javascript rendering")
-	Images           = flag.Bool("images", false, "Include images in the search")
-	filetypes        = flag.String("filetypes", "", "Comma separated list of filetypes for collection (e.g. 'pdf,docx,doc'), also supports by group name 'images','video','audio','pdf','doc','archive','code','shell','text','json','yaml','font'")
-	help             = flag.Bool("help", false, "Show help message")
-)
+func generalUsage() {
+	fmt.Printf(`usage: ./html-web-crawler <command> [options] --urls <urls>
+  commands:
+    collect  Collect data from URLs
+    crawl    Crawl URLs and collect data
+    install  Install chrome browser for javascript enabled scraping.
+               Note: Consider instead to install via native package manager,
+                     then set "CHROME_EXECUTABLE" in the environment
+	` + "\n")
+}
 
-func usage() {
-	fmt.Println("Usage: ./html-web-crawler <command> [options] --urls <urls>")
-	fmt.Println("Commands:")
-	fmt.Println("  collect  Collect data from URLs")
-	fmt.Println("  crawl    Crawl URLs and collect data")
+func commandHelp(flagset *flag.FlagSet) {
 	fmt.Println("Options:")
-	flag.PrintDefaults() // Print flag details with defaults
-	fmt.Println("\nNote: \"(inclusive with ___)\" means program will crawl link if either property matches (OR condition)")
+	flagset.PrintDefaults()
+	os.Exit(1)
 }
 
 func Execute() (interface{}, error) {
 	if len(os.Args) < 2 {
-		usage()
+		generalUsage()
 		return nil, errors.New("no command provided")
 	}
-
+	var crawlCmd = flag.NewFlagSet(os.Args[1], flag.ExitOnError) // Flags specific to "crawl" command
+	//var collectCmd = flag.NewFlagSet("collect", flag.ExitOnError) // Flags specific to "collect" command
+	// general flags
+	help := crawlCmd.Bool("help", false, "Show help message")
+	threads := crawlCmd.Int("threads", 1, "Number of concurrent urls to check when crawling")
+	timeout := crawlCmd.Int("timeout", 10, "Timeout in seconds for each HTTP request")
+	maxDepth := crawlCmd.Int("maxDepth", 1, "Maximum depth for pages to crawl, 1 will only return links from the given URLs")
+	maxLinks := crawlCmd.Int("maxLinks", 0, "Will limit crawling to a number of pages given")
+	urls := crawlCmd.String("urls", "",
+		`Comma separated URLs to crawl (required).
+example: --urls "https://example.com,https://example2.com"`)
+	classes := crawlCmd.String("classes", "",
+		`Comma separated list of classes inside the html that links need to be inside to crawl
+Note: combined using OR condition with ids
+example: --classes "button,center_col"`)
+	ids := crawlCmd.String("ids", "", `Comma separated list of ids inside the html that links need to be inside to crawl.
+Note: combined using OR condition with classes
+example: --ids "main,content"`)
+	domains := crawlCmd.String("domains", "", "Comma separated list of exact match domains to crawl, e.g. 'ap.com,reuters.com'")
+	excludeDomains := crawlCmd.String("excludeDomains", "", "Comma separated list of exact match domains NOT to crawl, e.g. 'ap.com,reuters.com'")
+	linkTextPatterns := crawlCmd.String("linkTextPatterns", "", `Comma separated list of link text to crawl 
+Note: combined using OR condition with urlPatterns`)
+	urlPatterns := crawlCmd.String("urlPatterns", "", `Comma separated list of URL patterns to crawl
+Note: combined using OR condition with linkTextPatterns`)
+	contentPatterns := crawlCmd.String("contentPatterns", "", "Comma separated list terms that must exist in page contents")
+	_ = crawlCmd.String("ignoredUrls", "", "Comma separated list of URLs to ignore")
+	jsDepth := crawlCmd.Int("jsDepth", 0, "Depth to use javascript rendering")
 	command := os.Args[1]
-	err := flag.CommandLine.Parse(os.Args[2:])
+	err := crawlCmd.Parse(os.Args[2:])
 	if *help || err != nil {
-		usage()
+		generalUsage()
 		os.Exit(0)
 	}
-
+	fmt.Println(string(*urls))
 	if *threads <= 0 {
 		fmt.Println("Error: threads must be a positive integer")
-		usage()
+		generalUsage()
 		os.Exit(1)
 	}
 
 	if *timeout <= 0 {
 		fmt.Println("Error: timeout must be a positive integer")
-		usage()
+		generalUsage()
 		os.Exit(1)
 	}
 
 	if *maxDepth < 1 {
 		fmt.Println("Error: maxDepth cannot be less than 1")
-		usage()
+		generalUsage()
 		os.Exit(1)
-	}
-
-	if *urls == "" {
-		if command == "install" {
-			browser.Install()
-			os.Exit(0)
-		} else {
-			usage()
-			os.Exit(1)
-		}
 	}
 
 	// Create a new crawler instance with flag values
@@ -112,26 +112,37 @@ func Execute() (interface{}, error) {
 	if *contentPatterns != "" {
 		c.Selectors.ContentPatterns = strings.Split(*contentPatterns, ",")
 	}
-	if *searchAny != "" {
-		c.SearchAny = strings.Split(*searchAny, ",")
-	}
-	// Split the URLs by comma
-	urls := strings.Split(*urls, ",")
 
+	// Split the URLs by comma
+	searchUrls := strings.Split(*urls, ",")
 	switch command {
 	case "install":
 		return nil, nil
 	case "collect":
+		searchAny := crawlCmd.String("searchAny", "", "search string")
+		filetypes := crawlCmd.String("filetypes", "",
+			`Comma separated list of filetypes for collection.
+Example: --filetypes "pdf,docx,doc"
+Also supports by group name such as:
+images, video, audio, pdf, doc, archive, code, shell, text, json, yaml, font`)
+		if *searchAny != "" {
+			c.SearchAny = strings.Split(*searchAny, ",")
+		}
 		if *filetypes != "" {
 			c.Selectors.Collections = strings.Split(*filetypes, ",")
 		}
-		fmt.Printf("collecting %v...\n", c.Selectors.Collections)
-		return c.Collect(urls...)
+		if *urls == "" {
+			commandHelp(crawlCmd)
+		}
+
+		return c.Collect(searchUrls...)
 	case "crawl":
-		fmt.Println("crawling...")
-		return c.Crawl(urls...)
+		if *urls == "" {
+			commandHelp(crawlCmd)
+		}
+		return c.Crawl(searchUrls...)
 	default:
-		usage()
+		generalUsage()
 		return nil, errors.New("unknown command")
 	}
 }

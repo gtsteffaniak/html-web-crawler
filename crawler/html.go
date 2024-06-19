@@ -142,7 +142,7 @@ func (c *Crawler) extractItems(htmlContent, pageUrl string) ([]string, error) {
 				for _, i := range c.Selectors.Collections {
 					regex, exists := collectionTypes[i]
 					if !exists {
-						regex = fmt.Sprintf(`([https?:]|\/)[^\s'"]+\.(?:%v)`, i)
+						regex = fmt.Sprintf(`([https?:]|\/)[^\s()'"]+\.(?:%v)`, i)
 					}
 					foundItems := regexSearch(regex, htmlString)
 					for _, url := range foundItems {
