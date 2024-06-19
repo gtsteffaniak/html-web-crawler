@@ -3,10 +3,10 @@ WORKDIR /app/crawler
 COPY [ "./", "./" ]
 RUN go build -ldflags='-w -s' .
 
-FROM node:alpine
-RUN apk add --no-cache musl-dev
-RUN npm init playwright@latest
-RUN npx npx playwright install
+FROM alpine
+# chromium needed for javascript enabled querying
+RUN apk add --no-cache chromium
+ENV CHROME_EXECUTABLE="/usr/bin/chromium"
 WORKDIR /app
 COPY --from=builder [ "/app/crawler", "./" ]
 CMD ["/app/crawler"]

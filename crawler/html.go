@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/gtsteffaniak/html-web-crawler/playwright"
+	"github.com/gtsteffaniak/html-web-crawler/browser"
 )
 
 // FetchHTML retrieves the HTML content of the given URL.
@@ -21,7 +21,7 @@ func (c *Crawler) FetchHTML(pageURL string, javascriptEnabled bool) (string, err
 		// nothing yet
 	}
 	if javascriptEnabled {
-		html, err := playwright.GetHtmlContent(pageURL)
+		html, err := browser.GetHtmlContent(pageURL)
 		if err != nil {
 			fmt.Println(err)
 		}

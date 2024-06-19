@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gtsteffaniak/html-web-crawler/browser"
 	"github.com/gtsteffaniak/html-web-crawler/crawler"
 )
 
@@ -74,8 +75,13 @@ func Execute() (interface{}, error) {
 	}
 
 	if *urls == "" {
-		usage()
-		os.Exit(1)
+		if command == "install" {
+			browser.Install()
+			os.Exit(0)
+		} else {
+			usage()
+			os.Exit(1)
+		}
 	}
 
 	// Create a new crawler instance with flag values
@@ -113,6 +119,8 @@ func Execute() (interface{}, error) {
 	urls := strings.Split(*urls, ",")
 
 	switch command {
+	case "install":
+		return nil, nil
 	case "collect":
 		if *filetypes != "" {
 			c.Selectors.Collections = strings.Split(*filetypes, ",")
