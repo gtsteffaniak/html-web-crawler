@@ -47,12 +47,10 @@ func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 
 // recursiveCrawl is a private method that performs the recursive crawling, respecting MaxDepth.
 func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
-
-	useJavascript := c.JsDepth > currentDepth
+	useJavascript := c.JsDepth >= currentDepth
 	if currentDepth > c.MaxDepth {
 		return nil
 	}
-
 	c.mutex.Lock()
 	if _, ok := c.pagesContent[pageURL]; ok {
 		c.mutex.Unlock()
@@ -62,11 +60,9 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 		c.mutex.Unlock()
 		return nil
 	}
-
 	// Update crawledData before recursive calls
 	c.pagesContent[pageURL] = ""
 	c.mutex.Unlock()
-
 	htmlContent, err := c.FetchHTML(pageURL, useJavascript)
 	if err != nil {
 		return nil // return nil on page load error because the site could be down
@@ -85,12 +81,10 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 	c.mutex.Lock()
 	c.pagesContent[pageURL] = ""
 	c.mutex.Unlock()
-
 	links, err := c.extractLinks(htmlContent)
 	if err != nil {
 		return err
 	}
-
 	items, err := c.extractItems(htmlContent, pageURL)
 	if err != nil {
 		return err
@@ -98,7 +92,6 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 	c.mutex.Lock()
 	c.collectedItems = append(c.collectedItems, items...)
 	c.mutex.Unlock()
-
 	// Limit the number of concurrent goroutines based on Threads
 	semaphore := make(chan struct{}, c.Threads)
 	for link, linkText := range links {

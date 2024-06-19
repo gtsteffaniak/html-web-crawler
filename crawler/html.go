@@ -21,7 +21,11 @@ func (c *Crawler) FetchHTML(pageURL string, javascriptEnabled bool) (string, err
 		// nothing yet
 	}
 	if javascriptEnabled {
-		return playwright.GetHtmlContent(pageURL)
+		html, err := playwright.GetHtmlContent(pageURL)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return html, err
 	} else {
 		return c.requestPage(pageURL)
 	}
@@ -33,11 +37,9 @@ func (c *Crawler) requestPage(pageURL string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("status code error: %d %s", resp.StatusCode, resp.Status)
 	}
-
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -150,11 +152,13 @@ func (c *Crawler) extractItems(htmlContent, pageUrl string) ([]string, error) {
 								// Access the last element using index len(split)-1
 								url = "https://" + split[len(split)-1]
 							}
-							items = append(items, url)
 						} else {
-							fullURL := toAbsoluteURL(pageUrl, url)
-							items = append(items, fullURL)
+							url = toAbsoluteURL(pageUrl, url)
 						}
+						if c.validDomainCheck(url) {
+							items = append(items, url)
+						}
+
 					}
 				}
 			}

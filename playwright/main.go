@@ -49,8 +49,19 @@ func GetHtmlContent(pageURL string) (string, error) {
 	if _, err = page.Goto(pageURL, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateNetworkidle}); err != nil {
 		return "", fmt.Errorf("could not goto: %w", err)
 	}
-	htmlString, err := page.Content()
-	return htmlString, err
+	// Use DOM selector to get body element
+	body, err := page.QuerySelector("body")
+	if err != nil {
+		return "", fmt.Errorf("could not find body element: %w", err)
+	}
+
+	// Get inner HTML of the body
+	bodyContent, err := body.InnerHTML()
+	if err != nil {
+		return "", fmt.Errorf("could not get inner HTML: %w", err)
+	}
+
+	return bodyContent, nil
 }
 
 // NewBrowserContextWithOptions creates a new browser context with options
