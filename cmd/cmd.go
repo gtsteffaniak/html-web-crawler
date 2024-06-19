@@ -38,7 +38,7 @@ func Execute() (interface{}, error) {
 	help := crawlCmd.Bool("help", false, "Show help message")
 	threads := crawlCmd.Int("threads", 1, "Number of concurrent urls to check when crawling")
 	timeout := crawlCmd.Int("timeout", 10, "Timeout in seconds for each HTTP request")
-	maxDepth := crawlCmd.Int("max-depth", 1, "Maximum depth for pages to crawl, 1 will only return links from the given URLs")
+	maxDepth := crawlCmd.Int("max-depth", 2, "Maximum depth for pages to crawl, 1 will only return links from the given URLs")
 	maxLinks := crawlCmd.Int("max-links", 0, "Will limit crawling to a number of pages given")
 	urls := crawlCmd.String("urls", "",
 		`Comma separated URLs to crawl (required).
@@ -59,7 +59,9 @@ Note: combined using OR condition with linkTextPatterns`)
 	contentPatterns := crawlCmd.String("content-selectors", "", "Comma separated list terms that must exist in page contents")
 	excludedUrls := crawlCmd.String("exclude-urls", "", "Comma separated list of URLs to ignore")
 	jsDepth := crawlCmd.Int("js-depth", 0, "Depth to use javascript rendering")
-	searchAny := crawlCmd.String("searchAny", "", "search string")
+	searchAny := crawlCmd.String("search-any", "", "search for any pattern (with OR operator)")
+	searchAll := crawlCmd.String("search-all", "", "search must contain all patterns (with AND operator)")
+
 	filetypes := crawlCmd.String("filetypes", "",
 		`Comma separated list of filetypes for collection.
 Example: --filetypes "pdf,docx,doc"
@@ -120,22 +122,24 @@ images, video, audio, pdf, doc, archive, code, shell, text, json, yaml, font`)
 	if *excludedUrls != "" {
 		c.Selectors.ExcludedUrls = strings.Split(*excludedUrls, ",")
 	}
+	if *searchAny != "" {
+		c.SearchAny = strings.Split(*searchAny, ",")
+	}
+	if *searchAll != "" {
+		c.SearchAll = strings.Split(*searchAll, ",")
+	}
+	if *filetypes != "" {
+		c.Selectors.Collections = strings.Split(*filetypes, ",")
+	}
 	// Split the URLs by comma
 	searchUrls := strings.Split(*urls, ",")
 	switch command {
 	case "install":
 		return nil, nil
 	case "collect":
-		if *searchAny != "" {
-			c.SearchAny = strings.Split(*searchAny, ",")
-		}
-		if *filetypes != "" {
-			c.Selectors.Collections = strings.Split(*filetypes, ",")
-		}
 		if *urls == "" {
 			commandHelp(crawlCmd)
 		}
-
 		return c.Collect(searchUrls...)
 	case "crawl":
 		if *urls == "" {

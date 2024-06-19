@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
@@ -26,7 +27,8 @@ func GetHtmlContent(pageURL string) (string, error) {
 	}
 	u := launcher.New().Bin(chromeExec).MustLaunch()
 	page := rod.New().ControlURL(u).MustConnect().MustPage(pageURL)
-	content, err := page.GetResource(pageURL)
+	page.WaitStable(time.Microsecond * 10)
+	content, err := page.HTML()
 	if err != nil {
 		fmt.Println(err)
 	}

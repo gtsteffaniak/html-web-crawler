@@ -61,6 +61,7 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 		fmt.Println(err)
 		return nil // return nil on page load error because the site could be down
 	}
+
 	if currentDepth > 0 && len(c.Selectors.ContentPatterns) > 0 {
 		matchContentPattern := false
 		for _, pattern := range c.Selectors.ContentPatterns {
@@ -72,6 +73,7 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 			return nil
 		}
 	}
+
 	c.mutex.Lock()
 	if len(c.SearchAny) == 0 {
 		c.pagesContent[pageURL] = htmlContent

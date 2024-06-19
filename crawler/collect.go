@@ -64,6 +64,7 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 	c.pagesContent[pageURL] = ""
 	c.mutex.Unlock()
 	htmlContent, err := c.FetchHTML(pageURL, useJavascript)
+
 	if err != nil {
 		return nil // return nil on page load error because the site could be down
 	}

@@ -34,12 +34,13 @@ type Selectors struct {
 func NewCrawler() *Crawler {
 	return &Crawler{
 		pagesContent: make(map[string]string),
-		Threads:      1,
-		Timeout:      10,
-		MaxDepth:     2,
-		MaxLinks:     0,
-		JsDepth:      0,
+		Threads:      1,  // single threaded by default
+		Timeout:      10, // 10 seconds
+		MaxDepth:     2,  // default is provided urls and follow any links on that page
+		MaxLinks:     0,  // unlimited
+		JsDepth:      0,  // javascript disabled by default
 		SearchAny:    []string{},
+		SearchAll:    []string{},
 		Selectors: Selectors{
 			ExcludedUrls:     []string{},
 			Collections:      []string{"images"},
