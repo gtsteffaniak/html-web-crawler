@@ -3,15 +3,14 @@ package crawler
 import "sync"
 
 type Crawler struct {
-	Threads     int
-	Timeout     int
-	MaxDepth    int
-	MaxLinks    int
-	SearchAny   []string
-	SearchAll   []string
-	IgnoredUrls []string
-	Selectors   Selectors
-	JsDepth     int
+	Threads   int
+	Timeout   int
+	MaxDepth  int
+	MaxLinks  int
+	SearchAny []string
+	SearchAll []string
+	Selectors Selectors
+	JsDepth   int
 	// private fields
 	pagesContent   map[string]string
 	collectedItems []string
@@ -29,6 +28,7 @@ type Selectors struct {
 	LinkTextPatterns []string
 	ContentPatterns  []string
 	ExcludeDomains   []string
+	ExcludedUrls     []string
 }
 
 func NewCrawler() *Crawler {
@@ -40,8 +40,8 @@ func NewCrawler() *Crawler {
 		MaxLinks:     0,
 		JsDepth:      0,
 		SearchAny:    []string{},
-		IgnoredUrls:  []string{},
 		Selectors: Selectors{
+			ExcludedUrls:     []string{},
 			Collections:      []string{"images"},
 			LinkTextPatterns: []string{},
 			UrlPatterns:      []string{},

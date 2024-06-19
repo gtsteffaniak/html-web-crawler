@@ -28,7 +28,7 @@ var collectionTypes = map[string]string{
 func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 	c.mode = "collect"
 	c.wg = sync.WaitGroup{}
-	for _, url := range c.IgnoredUrls {
+	for _, url := range c.Selectors.ExcludedUrls {
 		c.pagesContent[url] = ""
 	}
 	for _, url := range pageURL {

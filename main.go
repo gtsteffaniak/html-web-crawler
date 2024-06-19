@@ -20,10 +20,7 @@ func main() {
 			fmt.Println(item)
 		}
 	case map[string]string:
-		fmt.Println("Crawl function returned data:")
-		for key, value := range data {
-			fmt.Printf("%s: %s\n", key, value)
-		}
+		// nothing
 	default:
 		fmt.Println("Unknown data type returned")
 	}

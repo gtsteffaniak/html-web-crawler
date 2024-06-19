@@ -38,34 +38,39 @@ func Execute() (interface{}, error) {
 	help := crawlCmd.Bool("help", false, "Show help message")
 	threads := crawlCmd.Int("threads", 1, "Number of concurrent urls to check when crawling")
 	timeout := crawlCmd.Int("timeout", 10, "Timeout in seconds for each HTTP request")
-	maxDepth := crawlCmd.Int("maxDepth", 1, "Maximum depth for pages to crawl, 1 will only return links from the given URLs")
-	maxLinks := crawlCmd.Int("maxLinks", 0, "Will limit crawling to a number of pages given")
+	maxDepth := crawlCmd.Int("max-depth", 1, "Maximum depth for pages to crawl, 1 will only return links from the given URLs")
+	maxLinks := crawlCmd.Int("max-links", 0, "Will limit crawling to a number of pages given")
 	urls := crawlCmd.String("urls", "",
 		`Comma separated URLs to crawl (required).
 example: --urls "https://example.com,https://example2.com"`)
-	classes := crawlCmd.String("classes", "",
+	classes := crawlCmd.String("class-selectors", "",
 		`Comma separated list of classes inside the html that links need to be inside to crawl
 Note: combined using OR condition with ids
 example: --classes "button,center_col"`)
-	ids := crawlCmd.String("ids", "", `Comma separated list of ids inside the html that links need to be inside to crawl.
+	ids := crawlCmd.String("id-selectors", "", `Comma separated list of ids inside the html that links need to be inside to crawl.
 Note: combined using OR condition with classes
 example: --ids "main,content"`)
 	domains := crawlCmd.String("domains", "", "Comma separated list of exact match domains to crawl, e.g. 'ap.com,reuters.com'")
-	excludeDomains := crawlCmd.String("excludeDomains", "", "Comma separated list of exact match domains NOT to crawl, e.g. 'ap.com,reuters.com'")
-	linkTextPatterns := crawlCmd.String("linkTextPatterns", "", `Comma separated list of link text to crawl 
+	excludeDomains := crawlCmd.String("domains-excluded", "", "Comma separated list of exact match domains NOT to crawl, e.g. 'ap.com,reuters.com'")
+	linkTextPatterns := crawlCmd.String("link-text-selectors", "", `Comma separated list of link text to crawl 
 Note: combined using OR condition with urlPatterns`)
-	urlPatterns := crawlCmd.String("urlPatterns", "", `Comma separated list of URL patterns to crawl
+	urlPatterns := crawlCmd.String("url-selectors", "", `Comma separated list of URL patterns to crawl
 Note: combined using OR condition with linkTextPatterns`)
-	contentPatterns := crawlCmd.String("contentPatterns", "", "Comma separated list terms that must exist in page contents")
-	_ = crawlCmd.String("ignoredUrls", "", "Comma separated list of URLs to ignore")
-	jsDepth := crawlCmd.Int("jsDepth", 0, "Depth to use javascript rendering")
+	contentPatterns := crawlCmd.String("content-selectors", "", "Comma separated list terms that must exist in page contents")
+	excludedUrls := crawlCmd.String("exclude-urls", "", "Comma separated list of URLs to ignore")
+	jsDepth := crawlCmd.Int("js-depth", 0, "Depth to use javascript rendering")
+	searchAny := crawlCmd.String("searchAny", "", "search string")
+	filetypes := crawlCmd.String("filetypes", "",
+		`Comma separated list of filetypes for collection.
+Example: --filetypes "pdf,docx,doc"
+Also supports by group name such as:
+images, video, audio, pdf, doc, archive, code, shell, text, json, yaml, font`)
 	command := os.Args[1]
 	err := crawlCmd.Parse(os.Args[2:])
 	if *help || err != nil {
 		generalUsage()
 		os.Exit(0)
 	}
-	fmt.Println(string(*urls))
 	if *threads <= 0 {
 		fmt.Println("Error: threads must be a positive integer")
 		generalUsage()
@@ -112,19 +117,15 @@ Note: combined using OR condition with linkTextPatterns`)
 	if *contentPatterns != "" {
 		c.Selectors.ContentPatterns = strings.Split(*contentPatterns, ",")
 	}
-
+	if *excludedUrls != "" {
+		c.Selectors.ExcludedUrls = strings.Split(*excludedUrls, ",")
+	}
 	// Split the URLs by comma
 	searchUrls := strings.Split(*urls, ",")
 	switch command {
 	case "install":
 		return nil, nil
 	case "collect":
-		searchAny := crawlCmd.String("searchAny", "", "search string")
-		filetypes := crawlCmd.String("filetypes", "",
-			`Comma separated list of filetypes for collection.
-Example: --filetypes "pdf,docx,doc"
-Also supports by group name such as:
-images, video, audio, pdf, doc, archive, code, shell, text, json, yaml, font`)
 		if *searchAny != "" {
 			c.SearchAny = strings.Split(*searchAny, ",")
 		}

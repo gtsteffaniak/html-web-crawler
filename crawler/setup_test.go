@@ -20,7 +20,7 @@ func TestNewCrawler(t *testing.T) {
 				MaxLinks:     0,
 				JsDepth:      0,
 				SearchAny:    []string{},
-				IgnoredUrls:  []string{},
+				ExcludedUrls: []string{},
 				Selectors: Selectors{
 					Collections:      []string{"images"},
 					LinkTextPatterns: []string{},

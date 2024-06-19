@@ -11,7 +11,7 @@ import (
 func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 	c.mode = "crawl"
 	c.wg = sync.WaitGroup{}
-	for _, url := range c.IgnoredUrls {
+	for _, url := range c.Selectors.ExcludedUrls {
 		c.pagesContent[url] = ""
 	}
 	for _, url := range pageURL {
@@ -27,7 +27,7 @@ func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 	c.wg.Wait() // Wait for all goroutines to finish
 
 	for url := range c.pagesContent {
-		if slices.Contains(c.IgnoredUrls, url) {
+		if slices.Contains(c.Selectors.ExcludedUrls, url) {
 			delete(c.pagesContent, url)
 		}
 	}
