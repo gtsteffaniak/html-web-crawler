@@ -16,58 +16,53 @@ The decision to opt for Python over Go is an interesting topic which I intend to
 
 First, install or download the program
 ```
+// Make sure your go bin is in your path if installing via go
 go install github.com/gtsteffaniak/html-web-crawler@latest
 ```
 
-Make sure your go bin is in your path. Then, run with the commands
 ```
-html-web-crawler --urls https://apnews.com/
+html-web-crawler crawl --urls https://apnews.com/
 ```
 
 Use `--help` to see more options:
 
 ```
-Usage: ./html-web-crawler <command> [options] --urls <urls>
-Commands:
-  collect  Collect data from URLs
-  crawl    Crawl URLs and collect data
-Options:
-  -classes string
-        Comma separated list of classes inside the html that links need to be inside to crawl (inclusive with ids)
-  -contentPatterns string
-        Comma separated list terms that must exist in page contents
-  -domains string
-        Comma separated list of exact match domains to crawl, e.g. 'ap.com,reuters.com'
-  -excludeDomains string
-        Comma separated list of exact match domains NOT to crawl, e.g. 'ap.com,reuters.com'
-  -filetypes string
-        Comma separated list of filetypes for collection (e.g. 'pdf,docx,doc'), also supports by group name 'images','video','audio','pdf','doc','archive','code','shell','text','json','yaml','font'
-  -help
-        Show help message
-  -ids string
-        Comma separated list of ids inside the html that links need to be inside to crawl  (inclusive with classes)
-  -ignoredUrls string
-        Comma separated list of URLs to ignore
-  -images
-        Include images in the search
-  -linkTextPatterns string
-        Comma separated list of link text to crawl (inclusive with urlPatterns)
-  -maxDepth int
-        Maximum depth for pages to crawl, 1 will only return links from the given URLs (default 1)
-  -maxLinks int
-        Maximum number of links to crawl, 0 will crawl all links found.
-  -searchAny string
-        search string
-  -threads int
-        Number of concurrent urls to check when crawling (default 1)
-  -timeout int
-        Timeout in seconds for each HTTP request (default 10)
-  -urlPatterns string
-        Comma separated list of URL patterns to crawl (inclusive with linkTextPatterns)
-  -urls string
-        Comma separated URLs to crawl (required). ie "https://example.com,https://example2.com"
+usage: ./html-web-crawler <command> [options] --urls <urls>
+  commands:
+    collect  Collect data from URLs
+    crawl    Crawl URLs and collect data
+    install  Install chrome browser for javascript enabled scraping.
+               Note: Consider instead to install via native package manager,
+                     then set "CHROME_EXECUTABLE" in the environment
+```
 
-Note: "(inclusive with ___)" means program will crawl link if either property matches (OR condition)
+Available flags will very by command given.
+
+
+## Example CMD commands and purpose
+
+To get all links on a given page, but not crawl any further:
+```
+html-web-crawler crawl --urls https://apnews.com/ --max-depth 1
+```
+To query duck duck go search with javascript enabled:
+
+Note: Javascript requires chrome be installed and `CHROME_EXECUTABLE` path set for js enabled searching.
+```
+$ ./html-web-crawler collect --urls https://duckduckgo.com/?t=h_&q=puppies&iax=images&ia=images \
+--js-depth 1 --filetypes images
+Collect function returned data:
+https://duckduckgo.com/assets/icons/meta/DDG-iOS-icon_60x60.png
+https://duckduckgo.com/assets/icons/meta/DDG-iOS-icon_76x76.png
+https://duckduckgo.com/assets/icons/meta/DDG-iOS-icon_120x120.png
+https://duckduckgo.com/assets/icons/meta/DDG-iOS-icon_152x152.png
+https://duckduckgo.com/assets/icons/meta/DDG-icon_256x256.png
+https://duckduckgo.com/i/a49fa21e.jpg
+```
+
+To collect pages that include text:
+```
+
 ```
 
 ## Include as a module in your go program

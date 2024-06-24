@@ -3,7 +3,6 @@ package crawler
 import (
 	"fmt"
 	"net/url"
-	"regexp"
 	"strings"
 )
 
@@ -40,16 +39,6 @@ func containsClass(classAttr, targetClass string) bool {
 		}
 	}
 	return false
-}
-
-func regexSearch(re, text string) (matches []string) {
-	// Compile the regex pattern
-	regex, err := regexp.Compile(re)
-	if err != nil {
-		fmt.Println("Error compiling regex:", err)
-		return
-	}
-	return regex.FindAllString(text, -1)
 }
 
 func simpleSearch(s, text, url string) {

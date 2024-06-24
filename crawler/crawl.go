@@ -11,14 +11,14 @@ import (
 func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 	c.mode = "crawl"
 	c.wg = sync.WaitGroup{}
-	for _, url := range c.IgnoredUrls {
+	for _, url := range c.Selectors.ExcludedUrls {
 		c.pagesContent[url] = ""
 	}
 	for _, url := range pageURL {
 		c.wg.Add(1) // Add to the wait group before starting the recursive crawl
 		go func(url string) {
 			defer c.wg.Done()
-			err := c.recursiveCrawl(url, 0)
+			err := c.recursiveCrawl(url, 1)
 			if err != nil {
 				fmt.Printf("Error crawling %s: %v\n", url, err)
 			}
@@ -27,7 +27,7 @@ func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 	c.wg.Wait() // Wait for all goroutines to finish
 
 	for url := range c.pagesContent {
-		if slices.Contains(c.IgnoredUrls, url) {
+		if slices.Contains(c.Selectors.ExcludedUrls, url) {
 			delete(c.pagesContent, url)
 		}
 	}
@@ -40,6 +40,7 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 	if currentDepth > c.MaxDepth {
 		return nil
 	}
+	useJavascript := c.JsDepth >= currentDepth
 
 	c.mutex.Lock()
 	if _, ok := c.pagesContent[pageURL]; ok {
@@ -55,10 +56,12 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 	c.pagesContent[pageURL] = ""
 	c.mutex.Unlock()
 
-	htmlContent, err := c.FetchHTML(pageURL)
+	htmlContent, err := c.FetchHTML(pageURL, useJavascript)
 	if err != nil {
+		fmt.Println(err)
 		return nil // return nil on page load error because the site could be down
 	}
+
 	if currentDepth > 0 && len(c.Selectors.ContentPatterns) > 0 {
 		matchContentPattern := false
 		for _, pattern := range c.Selectors.ContentPatterns {
@@ -70,6 +73,7 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 			return nil
 		}
 	}
+
 	c.mutex.Lock()
 	if len(c.SearchAny) == 0 {
 		c.pagesContent[pageURL] = htmlContent

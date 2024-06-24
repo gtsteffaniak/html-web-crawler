@@ -1,18 +1,22 @@
 package crawler
 
-import "sync"
+import (
+	"regexp"
+	"sync"
+)
 
 type Crawler struct {
-	Threads     int
-	Timeout     int
-	MaxDepth    int
-	MaxLinks    int
-	SearchAny   []string
-	SearchAll   []string
-	IgnoredUrls []string
-	Selectors   Selectors
+	Threads   int
+	Timeout   int
+	MaxDepth  int
+	MaxLinks  int
+	SearchAny []string
+	SearchAll []string
+	Selectors Selectors
+	JsDepth   int
 	// private fields
 	pagesContent   map[string]string
+	regexPatterns  []regexp.Regexp
 	collectedItems []string
 	mutex          sync.Mutex
 	wg             sync.WaitGroup
@@ -28,18 +32,21 @@ type Selectors struct {
 	LinkTextPatterns []string
 	ContentPatterns  []string
 	ExcludeDomains   []string
+	ExcludedUrls     []string
 }
 
 func NewCrawler() *Crawler {
 	return &Crawler{
 		pagesContent: make(map[string]string),
-		Threads:      1,
-		Timeout:      10,
-		MaxDepth:     1,
-		MaxLinks:     0,
+		Threads:      1,  // single threaded by default
+		Timeout:      10, // 10 seconds
+		MaxDepth:     2,  // default is provided urls and follow any links on that page
+		MaxLinks:     0,  // unlimited
+		JsDepth:      0,  // javascript disabled by default
 		SearchAny:    []string{},
-		IgnoredUrls:  []string{},
+		SearchAll:    []string{},
 		Selectors: Selectors{
+			ExcludedUrls:     []string{},
 			Collections:      []string{"images"},
 			LinkTextPatterns: []string{},
 			UrlPatterns:      []string{},

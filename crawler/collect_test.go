@@ -66,7 +66,7 @@ func TestExtractItems(t *testing.T) {
 			html: htmlTests,
 			want: map[string][]string{
 				"firstHTML": {
-					"/url/image.png",
+					"https://www.domain.com/url/image.png",
 				},
 				"secondHTML": {},
 				"thirdHTML":  {},
@@ -82,7 +82,7 @@ func TestExtractItems(t *testing.T) {
 			html: htmlTests,
 			want: map[string][]string{
 				"firstHTML": {
-					"/url/image.png",
+					"https://www.domain.com/url/image.png",
 				},
 				"secondHTML": {
 					"https://testing.com/image.jpg",
@@ -98,14 +98,37 @@ func TestExtractItems(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewCrawler()
 			c.Selectors = *tt.s
+			c.mode = "collect"
+			c.compileCollections()
 			for key, html := range tt.html {
 				assert.Contains(t, tt.want, key)
-				got, _ := c.extractItems(html)
+				got, _ := c.extractItems(html, "https://www.domain.com")
 				if !reflect.DeepEqual(got, tt.want[key]) {
 					t.Errorf("\nmismatch for %v: \n > got %v,\n > want %v", key, got, tt.want[key])
 				}
 			}
 		})
+	}
+}
+
+func Benchmark_collectionSearch(b *testing.B) {
+	// Pick a representative test case from tests
+	testHtml := `
+	<body id="good">
+		<div >
+			<img src="/url/image.png" alt="example link">
+		</div>
+	</body>`
+	c := NewCrawler()
+	c.Selectors = Selectors{
+		Collections: []string{"images"},
+		Classes:     []string{"tax"},
+		Ids:         []string{},
+	}
+	c.mode = "collect"
+	c.compileCollections()
+	for i := 0; i < b.N; i++ {
+		_, _ = c.extractItems(testHtml, "https://www.domain.com")
 	}
 }
 
