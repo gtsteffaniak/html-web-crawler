@@ -119,15 +119,15 @@ func Benchmark_collectionSearch(b *testing.B) {
 			<img src="/url/image.png" alt="example link">
 		</div>
 	</body>`
+	c := NewCrawler()
+	c.Selectors = Selectors{
+		Collections: []string{"images"},
+		Classes:     []string{"tax"},
+		Ids:         []string{},
+	}
+	c.mode = "collect"
+	c.compileCollections()
 	for i := 0; i < b.N; i++ {
-		c := NewCrawler()
-		c.Selectors = Selectors{
-			Collections: []string{"images"},
-			Classes:     []string{"tax"},
-			Ids:         []string{},
-		}
-		c.mode = "collect"
-		c.compileCollections()
 		c.extractItems(testHtml, "https://www.domain.com")
 	}
 }
