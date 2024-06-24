@@ -8,29 +8,38 @@ import (
 	"strings"
 
 	"golang.org/x/net/html"
+
+	"github.com/gtsteffaniak/html-web-crawler/browser"
 )
 
 // FetchHTML retrieves the HTML content of the given URL.
-func (c *Crawler) FetchHTML(pageURL string) (string, error) {
-	switch {
-	case len(c.SearchAny) > 0:
-		fmt.Print(".")
-	case c.mode == "collect":
-		// do nothing
-	default:
+func (c *Crawler) FetchHTML(pageURL string, javascriptEnabled bool) (string, error) {
+	switch c.mode {
+	case "crawl":
 		fmt.Println("fetching", pageURL)
+	case "collect":
+		// nothing yet
 	}
+	if javascriptEnabled {
+		html, err := browser.GetHtmlContent(pageURL)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return html, err
+	} else {
+		return c.requestPage(pageURL)
+	}
+}
 
+func (c *Crawler) requestPage(pageURL string) (string, error) {
 	resp, err := http.Get(pageURL)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("status code error: %d %s", resp.StatusCode, resp.Status)
 	}
-
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -111,7 +120,7 @@ func (c *Crawler) extractLinks(htmlContent string) (map[string]string, error) {
 }
 
 // extractLinks extracts links within the specified element by id or class from the HTML content.
-func (c *Crawler) extractItems(htmlContent string) ([]string, error) {
+func (c *Crawler) extractItems(htmlContent, pageUrl string) ([]string, error) {
 	doc, err := html.Parse(strings.NewReader(htmlContent))
 	if err != nil {
 		return nil, err
@@ -126,17 +135,7 @@ func (c *Crawler) extractItems(htmlContent string) ([]string, error) {
 				defer func() { inTargetElement = false }() // reset to false after leaving the element
 			}
 			if inTargetElement {
-				htmlString, err := nodeToString(n)
-				if err != nil {
-					fmt.Println("error converting node to string", err)
-				}
-				for _, i := range c.Selectors.Collections {
-					regex, exists := collectionTypes[i]
-					if !exists {
-						regex = fmt.Sprintf(`([https?:]|\/)[^\s'"]+\.(?:%v)`, i)
-					}
-					items = append(items, regexSearch(regex, htmlString)...)
-				}
+				items = append(items, c.performSearch(n, pageUrl)...)
 			}
 		}
 		if !inTargetElement {
@@ -157,4 +156,30 @@ func nodeToString(n *html.Node) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func (c *Crawler) performSearch(n *html.Node, pageUrl string) []string {
+	items := []string{}
+	htmlString, err := nodeToString(n)
+	if err != nil {
+		fmt.Println("error converting node to string", err)
+	}
+	for _, re := range c.regexPatterns {
+		foundItems := re.FindAllString(htmlString, -1)
+		for _, url := range foundItems {
+			if strings.HasPrefix(url, "http") {
+				split := strings.Split(url, "https://")
+				if len(split) > 1 {
+					// Access the last element using index len(split)-1
+					url = "https://" + split[len(split)-1]
+				}
+			} else {
+				url = toAbsoluteURL(pageUrl, url)
+			}
+			if c.validDomainCheck(url) {
+				items = append(items, url)
+			}
+		}
+	}
+	return items
 }

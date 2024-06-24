@@ -12,7 +12,6 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
-
 	// Use a type switch to determine the type of crawledData
 	switch data := crawledData.(type) {
 	case []string:
@@ -21,10 +20,7 @@ func main() {
 			fmt.Println(item)
 		}
 	case map[string]string:
-		fmt.Println("Crawl function returned data:")
-		for key, value := range data {
-			fmt.Printf("%s: %s\n", key, value)
-		}
+		// nothing
 	default:
 		fmt.Println("Unknown data type returned")
 	}
