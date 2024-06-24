@@ -128,7 +128,7 @@ func Benchmark_collectionSearch(b *testing.B) {
 	c.mode = "collect"
 	c.compileCollections()
 	for i := 0; i < b.N; i++ {
-		c.extractItems(testHtml, "https://www.domain.com")
+		_, _ = c.extractItems(testHtml, "https://www.domain.com")
 	}
 }
 
