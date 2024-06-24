@@ -98,6 +98,8 @@ func TestExtractItems(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewCrawler()
 			c.Selectors = *tt.s
+			c.mode = "collect"
+			c.compileCollections()
 			for key, html := range tt.html {
 				assert.Contains(t, tt.want, key)
 				got, _ := c.extractItems(html, "https://www.domain.com")

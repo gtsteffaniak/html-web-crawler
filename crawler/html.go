@@ -135,32 +135,7 @@ func (c *Crawler) extractItems(htmlContent, pageUrl string) ([]string, error) {
 				defer func() { inTargetElement = false }() // reset to false after leaving the element
 			}
 			if inTargetElement {
-				htmlString, err := nodeToString(n)
-				if err != nil {
-					fmt.Println("error converting node to string", err)
-				}
-				for _, i := range c.Selectors.Collections {
-					regex, exists := collectionTypes[i]
-					if !exists {
-						regex = fmt.Sprintf(`([https?:]|\/)[^\s()'"]+\.(?:%v)`, i)
-					}
-					foundItems := regexSearch(regex, htmlString)
-					for _, url := range foundItems {
-						if strings.HasPrefix(url, "http") {
-							split := strings.Split(url, "https://")
-							if len(split) > 1 {
-								// Access the last element using index len(split)-1
-								url = "https://" + split[len(split)-1]
-							}
-						} else {
-							url = toAbsoluteURL(pageUrl, url)
-						}
-						if c.validDomainCheck(url) {
-							items = append(items, url)
-						}
-
-					}
-				}
+				items = append(items, c.performSearch(n, pageUrl)...)
 			}
 		}
 		if !inTargetElement {
@@ -181,4 +156,31 @@ func nodeToString(n *html.Node) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func (c *Crawler) performSearch(n *html.Node, pageUrl string) []string {
+	items := []string{}
+	htmlString, err := nodeToString(n)
+	if err != nil {
+		fmt.Println("error converting node to string", err)
+	}
+	for _, re := range c.regexPatterns {
+		fmt.Println(re)
+		foundItems := re.FindAllString(htmlString, -1)
+		for _, url := range foundItems {
+			if strings.HasPrefix(url, "http") {
+				split := strings.Split(url, "https://")
+				if len(split) > 1 {
+					// Access the last element using index len(split)-1
+					url = "https://" + split[len(split)-1]
+				}
+			} else {
+				url = toAbsoluteURL(pageUrl, url)
+			}
+			if c.validDomainCheck(url) {
+				items = append(items, url)
+			}
+		}
+	}
+	return items
 }

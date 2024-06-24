@@ -1,6 +1,9 @@
 package crawler
 
-import "sync"
+import (
+	"regexp"
+	"sync"
+)
 
 type Crawler struct {
 	Threads   int
@@ -13,6 +16,7 @@ type Crawler struct {
 	JsDepth   int
 	// private fields
 	pagesContent   map[string]string
+	regexPatterns  []regexp.Regexp
 	collectedItems []string
 	mutex          sync.Mutex
 	wg             sync.WaitGroup

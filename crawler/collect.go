@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ var collectionTypes = map[string]string{
 // Crawl is the public method that initializes the recursive crawling.
 func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 	c.mode = "collect"
+	c.compileCollections()
 	c.wg = sync.WaitGroup{}
 	for _, url := range c.Selectors.ExcludedUrls {
 		c.pagesContent[url] = ""
@@ -43,6 +45,20 @@ func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 	}
 	c.wg.Wait() // Wait for all goroutines to finish
 	return slices.Compact(c.collectedItems), nil
+}
+
+func (c *Crawler) compileCollections() {
+	for _, collectionType := range c.Selectors.Collections {
+		pattern, exists := collectionTypes[collectionType]
+		if !exists {
+			pattern = fmt.Sprintf(`([https?:]|\/)[^\s()'"]+\.(?:%v)`, collectionType)
+		}
+		regex, err := regexp.Compile(pattern)
+		if err != nil {
+			fmt.Println("Error compiling regex pattern")
+		}
+		c.regexPatterns = append(c.regexPatterns, *regex)
+	}
 }
 
 // recursiveCrawl is a private method that performs the recursive crawling, respecting MaxDepth.
