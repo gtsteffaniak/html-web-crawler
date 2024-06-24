@@ -165,7 +165,6 @@ func (c *Crawler) performSearch(n *html.Node, pageUrl string) []string {
 		fmt.Println("error converting node to string", err)
 	}
 	for _, re := range c.regexPatterns {
-		fmt.Println(re)
 		foundItems := re.FindAllString(htmlString, -1)
 		for _, url := range foundItems {
 			if strings.HasPrefix(url, "http") {

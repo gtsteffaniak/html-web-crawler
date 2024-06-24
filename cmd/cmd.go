@@ -52,7 +52,7 @@ Note: combined using OR condition with classes
 example: --ids "main,content"`)
 	domains := crawlCmd.String("domains", "", "Comma separated list of exact match domains to crawl, e.g. 'ap.com,reuters.com'")
 	excludeDomains := crawlCmd.String("domains-excluded", "", "Comma separated list of exact match domains NOT to crawl, e.g. 'ap.com,reuters.com'")
-	linkTextPatterns := crawlCmd.String("link-text-selectors", "", `Comma separated list of link text to crawl 
+	linkTextPatterns := crawlCmd.String("link-text-selectors", "", `Comma separated list of link text to crawl
 Note: combined using OR condition with urlPatterns`)
 	urlPatterns := crawlCmd.String("url-selectors", "", `Comma separated list of URL patterns to crawl
 Note: combined using OR condition with linkTextPatterns`)
@@ -61,7 +61,6 @@ Note: combined using OR condition with linkTextPatterns`)
 	jsDepth := crawlCmd.Int("js-depth", 0, "Depth to use javascript rendering")
 	searchAny := crawlCmd.String("search-any", "", "search for any pattern (with OR operator)")
 	searchAll := crawlCmd.String("search-all", "", "search must contain all patterns (with AND operator)")
-
 	filetypes := crawlCmd.String("filetypes", "",
 		`Comma separated list of filetypes for collection.
 Example: --filetypes "pdf,docx,doc"

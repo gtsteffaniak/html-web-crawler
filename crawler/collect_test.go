@@ -111,6 +111,27 @@ func TestExtractItems(t *testing.T) {
 	}
 }
 
+func Benchmark_collectionSearch(b *testing.B) {
+	// Pick a representative test case from tests
+	testHtml := `
+	<body id="good">
+		<div >
+			<img src="/url/image.png" alt="example link">
+		</div>
+	</body>`
+	for i := 0; i < b.N; i++ {
+		c := NewCrawler()
+		c.Selectors = Selectors{
+			Collections: []string{"images"},
+			Classes:     []string{"tax"},
+			Ids:         []string{},
+		}
+		c.mode = "collect"
+		c.compileCollections()
+		c.extractItems(testHtml, "https://www.domain.com")
+	}
+}
+
 func TestSingleSourceRunCollect(t *testing.T) {
 	c := NewCrawler()
 	c.Threads = 10
