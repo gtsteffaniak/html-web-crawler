@@ -20,7 +20,6 @@ func GetHtmlContent(pageURL string) (string, error) {
 	if b.Validate() != nil && chromeExec == "" {
 		log.Fatal(`Attempted to use javascript engine, but no chromium browser was found.
 		You can fix this two ways:
-		
 		1. installing chromium and set CHROME_EXECUTABLE path to chromium executable.
 		2. running the "./html-web-cralwer install" command to automatically install.
 `)

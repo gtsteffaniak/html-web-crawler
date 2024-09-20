@@ -21,6 +21,7 @@ type Crawler struct {
 	mutex          sync.Mutex
 	wg             sync.WaitGroup
 	mode           string
+	Silent         bool
 }
 
 type Selectors struct {
@@ -43,6 +44,7 @@ func NewCrawler() *Crawler {
 		MaxDepth:     2,  // default is provided urls and follow any links on that page
 		MaxLinks:     0,  // unlimited
 		JsDepth:      0,  // javascript disabled by default
+		Silent:       false,
 		SearchAny:    []string{},
 		SearchAll:    []string{},
 		Selectors: Selectors{
