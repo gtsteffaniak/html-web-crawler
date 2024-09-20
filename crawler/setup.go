@@ -49,7 +49,7 @@ func NewCrawler() *Crawler {
 		SearchAll:    []string{},
 		Selectors: Selectors{
 			ExcludedUrls:     []string{},
-			Collections:      []string{"images"},
+			Collections:      []string{"html"},
 			LinkTextPatterns: []string{},
 			UrlPatterns:      []string{},
 			ContentPatterns:  []string{},

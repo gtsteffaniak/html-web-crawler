@@ -44,6 +44,7 @@ func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 		}(url)
 	}
 	c.wg.Wait() // Wait for all goroutines to finish
+	slices.Sort(c.collectedItems)
 	return slices.Compact(c.collectedItems), nil
 }
 

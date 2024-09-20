@@ -138,5 +138,15 @@ func TestSingleSourceRunCollect(t *testing.T) {
 	c.MaxLinks = 3
 	results, err := c.Collect("https://www.apple.com/newsroom/")
 	assert.Equal(t, nil, err)
-	assert.GreaterOrEqual(t, len(results), 3)
+	assert.GreaterOrEqual(t, len(results), 2)
+}
+
+func TestSingleSourceRunCollectImages(t *testing.T) {
+	c := NewCrawler()
+	c.Threads = 10
+	c.MaxLinks = 3
+	c.Selectors.Collections = []string{"images"}
+	results, err := c.Collect("https://www.apple.com/newsroom/")
+	assert.Equal(t, nil, err)
+	assert.GreaterOrEqual(t, len(results), 100)
 }

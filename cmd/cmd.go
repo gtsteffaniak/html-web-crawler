@@ -14,7 +14,7 @@ func generalUsage() {
 	fmt.Printf(`usage: ./html-web-crawler <command> [options] --urls <urls>
   commands:
     crawl    Used to gather URLs that match a search, crawling urls recursively. The result is a map of urls to their full html content. This is quicker and more efficient than collect.
-    collect  collect is more intensive and specific than crawl. The result is a mpa of urls with arrays of matched items, such as urls for images, search terms, etc. This does not return full html.
+    collect  collect is more intensive and specific than crawl. The result is a mpa of urls with arrays of matched items, such as urls for images, search terms, etc. This does not return full html. Defaults to html search content.
     install  Install chrome browser for javascript enabled scraping.
                Note: Consider instead to install via native package manager,
                      then set "CHROME_EXECUTABLE" in the environment
