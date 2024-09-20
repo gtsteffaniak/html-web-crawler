@@ -23,7 +23,7 @@ func TestNewCrawler(t *testing.T) {
 				SearchAll:    []string{},
 				Selectors: Selectors{
 					ExcludedUrls:     []string{},
-					Collections:      []string{"images"},
+					Collections:      []string{"html"},
 					LinkTextPatterns: []string{},
 					UrlPatterns:      []string{},
 					ContentPatterns:  []string{},

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -16,7 +17,9 @@ import (
 func (c *Crawler) FetchHTML(pageURL string, javascriptEnabled bool) (string, error) {
 	switch c.mode {
 	case "crawl":
-		fmt.Println("fetching", pageURL)
+		if !c.Silent {
+			fmt.Println("fetching", pageURL)
+		}
 	case "collect":
 		// nothing yet
 	}
@@ -47,7 +50,21 @@ func (c *Crawler) requestPage(pageURL string) (string, error) {
 	htmlString := string(bodyBytes)
 	if len(c.SearchAny) > 0 {
 		for _, s := range c.SearchAny {
-			simpleSearch(s, htmlString, pageURL)
+			results := simpleSearch(s, htmlString, 30)
+			if len(results) == 0 {
+				continue
+			}
+			if !c.Silent {
+				fmt.Println("\n=== found matches : ", pageURL)
+				for _, r := range results {
+					fmt.Println(r)
+				}
+			}
+			if slices.Contains(c.Selectors.Collections, "html") {
+				c.mutex.Lock()
+				c.collectedItems = append(c.collectedItems, pageURL)
+				c.mutex.Unlock()
+			}
 		}
 	}
 	return htmlString, nil
@@ -158,6 +175,7 @@ func nodeToString(n *html.Node) (string, error) {
 	return buf.String(), nil
 }
 
+// performSearch searches for items in the given html node.
 func (c *Crawler) performSearch(n *html.Node, pageUrl string) []string {
 	items := []string{}
 	htmlString, err := nodeToString(n)

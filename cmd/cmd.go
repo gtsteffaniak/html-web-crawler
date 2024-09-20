@@ -13,8 +13,8 @@ import (
 func generalUsage() {
 	fmt.Printf(`usage: ./html-web-crawler <command> [options] --urls <urls>
   commands:
-    collect  Collect data from URLs
-    crawl    Crawl URLs and collect data
+    crawl    Used to gather URLs that match a search, crawling urls recursively. The result is a map of urls to their full html content. This is quicker and more efficient than collect.
+    collect  collect is more intensive and specific than crawl. The result is a mpa of urls with arrays of matched items, such as urls for images, search terms, etc. This does not return full html. Defaults to html search content.
     install  Install chrome browser for javascript enabled scraping.
                Note: Consider instead to install via native package manager,
                      then set "CHROME_EXECUTABLE" in the environment
@@ -36,6 +36,7 @@ func Execute() (interface{}, error) {
 	//var collectCmd = flag.NewFlagSet("collect", flag.ExitOnError) // Flags specific to "collect" command
 	// general flags
 	help := crawlCmd.Bool("help", false, "Show help message")
+	silent := crawlCmd.Bool("silent", false, "hide all output, instead exit codes will return if run as command.")
 	threads := crawlCmd.Int("threads", 1, "Number of concurrent urls to check when crawling")
 	timeout := crawlCmd.Int("timeout", 10, "Timeout in seconds for each HTTP request")
 	maxDepth := crawlCmd.Int("max-depth", 2, "Maximum depth for pages to crawl, 1 will only return links from the given URLs")
@@ -97,6 +98,7 @@ images, video, audio, pdf, doc, archive, code, shell, text, json, yaml, font`)
 	c.MaxDepth = *maxDepth
 	c.MaxLinks = *maxLinks
 	c.JsDepth = *jsDepth
+	c.Silent = *silent
 	if *ids != "" {
 		c.Selectors.Ids = strings.Split(*ids, ",")
 	}

@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 )
@@ -41,26 +40,25 @@ func containsClass(classAttr, targetClass string) bool {
 	return false
 }
 
-func simpleSearch(s, text, url string) {
+// simpleSearch searches for match and returns partial text results list
+func simpleSearch(s, text string, bufferLen int) []string {
+	found := []string{}
 	if strings.Contains(text, s) {
-		parts := strings.Split(text, s)
-		firstPart := parts[0]
-		secondPart := parts[1]
-
-		// Get last 10 characters of the first element
-		last10First := firstPart
-		if len(firstPart) > 20 {
-			last10First = firstPart[len(firstPart)-20:]
+		index := strings.Index(text, s)
+		if index != -1 {
+			start := index - bufferLen
+			if start < 0 {
+				start = 0
+			}
+			end := index + len(s) + bufferLen
+			if end > len(text) {
+				end = len(text)
+			}
+			cleaned := strings.ReplaceAll(text[start:end], "\n", "")
+			found = append(found, cleaned)
 		}
-
-		// Get first 10 characters of the second element
-		first10Second := secondPart
-		if len(secondPart) > 20 {
-			first10Second = secondPart[:20]
-		}
-		// Print the results
-		fmt.Printf("\n%s%s%s : %s\n", last10First, s, first10Second, url)
 	}
+	return found
 }
 
 func (c *Crawler) linkTextCheck(link, linkText string) bool {
