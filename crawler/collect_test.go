@@ -134,11 +134,11 @@ func Benchmark_collectionSearch(b *testing.B) {
 
 func TestSingleSourceRunCollect(t *testing.T) {
 	c := NewCrawler()
-	c.Threads = 10
+	c.Threads = 4
 	c.MaxLinks = 3
 	results, err := c.Collect("https://www.apple.com/newsroom/")
 	assert.Equal(t, nil, err)
-	assert.GreaterOrEqual(t, len(results), 2)
+	assert.GreaterOrEqual(t, len(results), 10)
 }
 
 func TestSingleSourceRunCollectImages(t *testing.T) {
