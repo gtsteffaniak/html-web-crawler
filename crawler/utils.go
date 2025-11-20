@@ -6,17 +6,20 @@ import (
 )
 
 // toAbsoluteURL converts a relative URL to an absolute URL based on the base URL.
+// URL parsing errors are logged but the function continues with best-effort conversion.
 func toAbsoluteURL(base, link string) string {
 	// Handle protocol-relative URLs (starting with //)
 	if strings.HasPrefix(link, "//") {
 		baseURL, err := url.Parse(base)
 		if err != nil {
+			// Invalid base URL - return link as-is (best effort)
 			return link
 		}
 		return baseURL.Scheme + ":" + link
 	}
 	u, err := url.Parse(link)
 	if err != nil {
+		// Invalid link URL - return as-is (best effort)
 		return link
 	}
 	if u.IsAbs() {
@@ -25,12 +28,14 @@ func toAbsoluteURL(base, link string) string {
 	if strings.HasPrefix(link, "/") {
 		baseURL, err := url.Parse(base)
 		if err != nil {
+			// Invalid base URL - try to construct from domain
 			return "https://" + getDomain(base) + link
 		}
 		return baseURL.Scheme + "://" + baseURL.Host + link
 	}
 	baseURL, err := url.Parse(base)
 	if err != nil {
+		// Invalid base URL - return base as fallback
 		return base
 	}
 	resolved := baseURL.ResolveReference(u)
@@ -38,9 +43,11 @@ func toAbsoluteURL(base, link string) string {
 }
 
 // getDomain returns the domain of a URL.
+// Returns empty string if URL parsing fails (invalid URL).
 func getDomain(pageURL string) string {
 	u, err := url.Parse(pageURL)
 	if err != nil {
+		// Invalid URL - return empty string (caller should handle)
 		return ""
 	}
 	return u.Host

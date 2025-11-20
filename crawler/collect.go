@@ -28,7 +28,9 @@ var collectionTypes = map[string]string{
 // Crawl is the public method that initializes the recursive crawling.
 func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 	c.mode = "collect"
-	c.compileCollections()
+	if err := c.compileCollections(); err != nil {
+		return nil, fmt.Errorf("failed to compile collection patterns: %w", err)
+	}
 	c.wg = sync.WaitGroup{}
 	c.errors = []error{} // Initialize errors slice
 	for _, url := range c.Selectors.ExcludedUrls {
@@ -56,7 +58,7 @@ func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 	return slices.Compact(c.collectedItems), nil
 }
 
-func (c *Crawler) compileCollections() {
+func (c *Crawler) compileCollections() error {
 	for _, collectionType := range c.Selectors.Collections {
 		pattern, exists := collectionTypes[collectionType]
 		if !exists {
@@ -64,10 +66,11 @@ func (c *Crawler) compileCollections() {
 		}
 		regex, err := regexp.Compile(pattern)
 		if err != nil {
-			fmt.Println("Error compiling regex pattern")
+			return fmt.Errorf("error compiling regex pattern for collection type '%s': %w", collectionType, err)
 		}
 		c.regexPatterns = append(c.regexPatterns, *regex)
 	}
+	return nil
 }
 
 // recursiveCrawl is a private method that performs the recursive crawling, respecting MaxDepth.
@@ -89,9 +92,13 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 	c.pagesContent[pageURL] = ""
 	c.mutex.Unlock()
 	htmlContent, err := c.FetchHTML(pageURL, useJavascript)
-
 	if err != nil {
-		return fmt.Errorf("error fetching HTML for %s: %w", pageURL, err)
+		// Log transient HTTP errors but don't fail the entire crawl
+		// These are expected when scraping (403, 404, network issues, etc.)
+		if !c.Silent {
+			fmt.Printf("Warning: failed to fetch %s: %v\n", pageURL, err)
+		}
+		return nil // Continue crawling other pages
 	}
 	if currentDepth > 0 && len(c.Selectors.ContentPatterns) > 0 {
 		matchContentPattern := false
@@ -109,11 +116,19 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 	c.mutex.Unlock()
 	links, err := c.extractLinks(htmlContent)
 	if err != nil {
-		return err
+		// HTML parsing errors are common with malformed HTML - log but continue
+		if !c.Silent {
+			fmt.Printf("Warning: failed to extract links from %s: %v\n", pageURL, err)
+		}
+		return nil // Continue with other pages
 	}
 	items, err := c.extractItems(htmlContent, pageURL)
 	if err != nil {
-		return err
+		// HTML parsing errors are common - log but continue
+		if !c.Silent {
+			fmt.Printf("Warning: failed to extract items from %s: %v\n", pageURL, err)
+		}
+		return nil // Continue with other pages
 	}
 	c.mutex.Lock()
 	c.collectedItems = append(c.collectedItems, items...)

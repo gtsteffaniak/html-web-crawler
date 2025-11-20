@@ -11,6 +11,7 @@ import (
 func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 	c.mode = "crawl"
 	c.wg = sync.WaitGroup{}
+	c.errors = []error{} // Initialize errors slice
 	for _, url := range c.Selectors.ExcludedUrls {
 		c.pagesContent[url] = ""
 	}
@@ -20,7 +21,12 @@ func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 			defer c.wg.Done()
 			err := c.recursiveCrawl(url, 1)
 			if err != nil {
-				fmt.Printf("Error crawling %s: %v\n", url, err)
+				c.mutex.Lock()
+				c.errors = append(c.errors, err)
+				c.mutex.Unlock()
+				if !c.Silent {
+					fmt.Printf("Error crawling %s: %v\n", url, err)
+				}
 			}
 		}(url)
 	}
@@ -32,6 +38,10 @@ func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 		}
 	}
 
+	// Return the first error if any occurred (but still return the results)
+	if len(c.errors) > 0 {
+		return c.pagesContent, c.errors[0]
+	}
 	return c.pagesContent, nil
 }
 
@@ -58,8 +68,12 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 
 	htmlContent, err := c.FetchHTML(pageURL, useJavascript)
 	if err != nil {
-		fmt.Println(err)
-		return nil // return nil on page load error because the site could be down
+		// Log transient HTTP errors but don't fail the entire crawl
+		// These are expected when scraping (403, 404, network issues, etc.)
+		if !c.Silent {
+			fmt.Printf("Warning: failed to fetch %s: %v\n", pageURL, err)
+		}
+		return nil // Continue crawling other pages
 	}
 
 	if currentDepth > 0 && len(c.Selectors.ContentPatterns) > 0 {
@@ -84,7 +98,11 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 
 	links, err := c.extractLinks(htmlContent)
 	if err != nil {
-		return err
+		// HTML parsing errors are common with malformed HTML - log but continue
+		if !c.Silent {
+			fmt.Printf("Warning: failed to extract links from %s: %v\n", pageURL, err)
+		}
+		return nil // Continue with other pages
 	}
 
 	// Limit the number of concurrent goroutines based on Threads
@@ -111,7 +129,12 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 				}()
 				err := c.recursiveCrawl(url, currentDepth+1)
 				if err != nil {
-					fmt.Printf("Error crawling %s: %v\n", url, err)
+					c.mutex.Lock()
+					c.errors = append(c.errors, err)
+					c.mutex.Unlock()
+					if !c.Silent {
+						fmt.Printf("Error crawling %s: %v\n", url, err)
+					}
 				}
 			}(fullURL)
 		}
