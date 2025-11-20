@@ -41,7 +41,9 @@ func (c *Crawler) requestPage(pageURL string) (string, error) {
 		// Network errors are transient - return for caller to handle
 		return "", fmt.Errorf("network error fetching %s: %w", pageURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() // Ignore close errors on HTTP response body
+	}()
 	if resp.StatusCode != http.StatusOK {
 		// HTTP errors (403, 404, 500, etc.) are transient in scraping context
 		return "", fmt.Errorf("HTTP %d %s for %s", resp.StatusCode, resp.Status, pageURL)

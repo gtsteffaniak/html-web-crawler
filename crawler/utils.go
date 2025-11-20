@@ -104,7 +104,7 @@ func (c *Crawler) linkTextCheck(link, linkText string) bool {
 
 func (c *Crawler) validDomainCheck(fullURL string) bool {
 	// Handle protocol-relative URLs by checking if it starts with // or has a scheme
-	if !(strings.HasPrefix(fullURL, "https://") || strings.HasPrefix(fullURL, "http://") || strings.HasPrefix(fullURL, "//")) {
+	if !strings.HasPrefix(fullURL, "https://") && !strings.HasPrefix(fullURL, "http://") && !strings.HasPrefix(fullURL, "//") {
 		return false
 	}
 	// Convert protocol-relative URLs to absolute for domain checking

@@ -99,7 +99,8 @@ func TestExtractItems(t *testing.T) {
 			c := NewCrawler()
 			c.Selectors = *tt.s
 			c.mode = "collect"
-			c.compileCollections()
+			err := c.compileCollections()
+			assert.NoError(t, err)
 			for key, html := range tt.html {
 				assert.Contains(t, tt.want, key)
 				got, _ := c.extractItems(html, "https://www.domain.com")
@@ -126,7 +127,7 @@ func Benchmark_collectionSearch(b *testing.B) {
 		Ids:         []string{},
 	}
 	c.mode = "collect"
-	c.compileCollections()
+	_ = c.compileCollections() // Ignore error in benchmark
 	for i := 0; i < b.N; i++ {
 		_, _ = c.extractItems(testHtml, "https://www.domain.com")
 	}
