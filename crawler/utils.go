@@ -7,6 +7,14 @@ import (
 
 // toAbsoluteURL converts a relative URL to an absolute URL based on the base URL.
 func toAbsoluteURL(base, link string) string {
+	// Handle protocol-relative URLs (starting with //)
+	if strings.HasPrefix(link, "//") {
+		baseURL, err := url.Parse(base)
+		if err != nil {
+			return link
+		}
+		return baseURL.Scheme + ":" + link
+	}
 	u, err := url.Parse(link)
 	if err != nil {
 		return link
@@ -15,9 +23,18 @@ func toAbsoluteURL(base, link string) string {
 		return link
 	}
 	if strings.HasPrefix(link, "/") {
-		base = "https://" + getDomain(base) + link
+		baseURL, err := url.Parse(base)
+		if err != nil {
+			return "https://" + getDomain(base) + link
+		}
+		return baseURL.Scheme + "://" + baseURL.Host + link
 	}
-	return base
+	baseURL, err := url.Parse(base)
+	if err != nil {
+		return base
+	}
+	resolved := baseURL.ResolveReference(u)
+	return resolved.String()
 }
 
 // getDomain returns the domain of a URL.
@@ -79,8 +96,13 @@ func (c *Crawler) linkTextCheck(link, linkText string) bool {
 }
 
 func (c *Crawler) validDomainCheck(fullURL string) bool {
-	if !(strings.HasPrefix(fullURL, "https://") || strings.HasPrefix(fullURL, "http://")) {
+	// Handle protocol-relative URLs by checking if it starts with // or has a scheme
+	if !(strings.HasPrefix(fullURL, "https://") || strings.HasPrefix(fullURL, "http://") || strings.HasPrefix(fullURL, "//")) {
 		return false
+	}
+	// Convert protocol-relative URLs to absolute for domain checking
+	if strings.HasPrefix(fullURL, "//") {
+		fullURL = "https:" + fullURL
 	}
 	domain := getDomain(fullURL)
 	if domain == "" {

@@ -18,6 +18,7 @@ type Crawler struct {
 	pagesContent   map[string]string
 	regexPatterns  []regexp.Regexp
 	collectedItems []string
+	errors         []error
 	mutex          sync.Mutex
 	wg             sync.WaitGroup
 	mode           string

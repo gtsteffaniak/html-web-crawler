@@ -30,6 +30,7 @@ func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 	c.mode = "collect"
 	c.compileCollections()
 	c.wg = sync.WaitGroup{}
+	c.errors = []error{} // Initialize errors slice
 	for _, url := range c.Selectors.ExcludedUrls {
 		c.pagesContent[url] = ""
 	}
@@ -39,12 +40,19 @@ func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 			defer c.wg.Done()
 			err := c.recursiveCollect(url, 1)
 			if err != nil {
+				c.mutex.Lock()
+				c.errors = append(c.errors, err)
+				c.mutex.Unlock()
 				fmt.Printf("Error crawling %s: %v\n", url, err)
 			}
 		}(url)
 	}
 	c.wg.Wait() // Wait for all goroutines to finish
 	slices.Sort(c.collectedItems)
+	// Return the first error if any occurred
+	if len(c.errors) > 0 {
+		return slices.Compact(c.collectedItems), c.errors[0]
+	}
 	return slices.Compact(c.collectedItems), nil
 }
 
@@ -83,7 +91,7 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 	htmlContent, err := c.FetchHTML(pageURL, useJavascript)
 
 	if err != nil {
-		return nil // return nil on page load error because the site could be down
+		return fmt.Errorf("error fetching HTML for %s: %w", pageURL, err)
 	}
 	if currentDepth > 0 && len(c.Selectors.ContentPatterns) > 0 {
 		matchContentPattern := false
@@ -109,6 +117,10 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 	}
 	c.mutex.Lock()
 	c.collectedItems = append(c.collectedItems, items...)
+	// If "html" is in Collections, also collect the page URL itself
+	if slices.Contains(c.Selectors.Collections, "html") {
+		c.collectedItems = append(c.collectedItems, pageURL)
+	}
 	c.mutex.Unlock()
 	// Limit the number of concurrent goroutines based on Threads
 	semaphore := make(chan struct{}, c.Threads)
@@ -134,11 +146,13 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 				}()
 				err := c.recursiveCollect(url, currentDepth+1)
 				if err != nil {
+					c.mutex.Lock()
+					c.errors = append(c.errors, err)
+					c.mutex.Unlock()
 					fmt.Printf("Error collecting %s: %v\n", url, err)
 				}
 			}(fullURL)
 		}
 	}
-
 	return nil
 }

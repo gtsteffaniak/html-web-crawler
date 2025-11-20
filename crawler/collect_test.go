@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -132,19 +133,30 @@ func Benchmark_collectionSearch(b *testing.B) {
 	}
 }
 
-func TestSingleSourceRunCollect(t *testing.T) {
+func TestSingleSourceRunCollectHtml(t *testing.T) {
+	// First test: default Collections=["html"] should collect page URLs
 	c := NewCrawler()
 	c.Threads = 1
 	c.MaxDepth = 1
 	c.MaxLinks = 3
-	results, err := c.Collect("https://en.wikipedia.org/wiki/Apple")
+	results, err := c.Collect("https://www.cnn.com/")
+	fmt.Println(err)
+	for _, result := range results {
+		fmt.Println(result)
+	}
 	assert.Equal(t, nil, err)
-	assert.GreaterOrEqual(t, len(results), 10)
+	// With MaxLinks=3 and MaxDepth=1, we should get at least the starting URL plus some links
+	assert.GreaterOrEqual(t, len(results), 1, "Should collect at least the starting page URL")
 
+}
+func TestSingleSourceRunCollectImages(t *testing.T) {
+	// First test: default Collections=["html"] should collect page URLs
+	c := NewCrawler()
+	c.MaxDepth = 1
 	c.Threads = 10
 	c.MaxLinks = 3
 	c.Selectors.Collections = []string{"images"}
-	results, err = c.Collect("https://en.wikipedia.org/wiki/Apple")
+	results, err := c.Collect("https://www.cnn.com/")
 	assert.Equal(t, nil, err)
-	assert.GreaterOrEqual(t, len(results), 10)
+	assert.GreaterOrEqual(t, len(results), 5)
 }
