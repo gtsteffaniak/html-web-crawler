@@ -1,0 +1,52 @@
+# .goreleaser.yaml
+project_name: html-web-crawler
+version: 2
+
+builds:
+  # Build configuration for Linux
+  - id: linux
+    ldflags: &ldflags
+      - -s -w -X github.com/gtsteffaniak/html-web-crawler/version.Version=v{{ .Version }} -X github.com/gtsteffaniak/html-web-crawler/version.CommitSHA={{ .ShortCommit }}
+    main: main.go
+    binary: html-web-crawler
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - "6"
+      - "7"
+
+  # Build configuration for macOS
+  - id: darwin
+    ldflags: *ldflags
+    main: main.go
+    binary: html-web-crawler
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+  # Build configuration for Windows
+  - id: windows
+    ldflags: *ldflags
+    main: main.go
+    binary: html-web-crawler.exe
+    goos:
+      - windows
+    goarch:
+      - amd64
+
+archives:
+  - name_template: >
+      {{- if eq .Os "windows" -}}
+      {{.ProjectName}}
+      {{- else -}}
+      {{.Os}}-{{.Arch}}{{if .Arm}}v{{.Arm}}{{end}}-{{.ProjectName}}
+      {{- end -}}
+    formats: [ 'binary' ]
+
+checksum:
+  disable: true

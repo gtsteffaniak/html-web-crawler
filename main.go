@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/gtsteffaniak/html-web-crawler/cmd"
 )
@@ -9,9 +11,10 @@ import (
 func main() {
 	crawledData, err := cmd.Execute()
 	if err != nil {
-		fmt.Println("Error:", err)
-		return
+		log.Printf("Error: %v", err)
+		os.Exit(1)
 	}
+
 	// Use a type switch to determine the type of crawledData
 	switch data := crawledData.(type) {
 	case []string:
@@ -20,8 +23,11 @@ func main() {
 			fmt.Println(item)
 		}
 	case map[string]string:
-		// nothing
+		// Crawl returns map, but we don't print it by default
+		// User can pipe to file if needed
 	default:
-		fmt.Println("Unknown data type returned")
+		if data != nil {
+			fmt.Println("Unknown data type returned")
+		}
 	}
 }

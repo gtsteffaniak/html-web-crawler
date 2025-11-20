@@ -5,6 +5,7 @@ go 1.21
 toolchain go1.22.0
 
 require (
+	github.com/alecthomas/kong v0.8.1
 	github.com/go-rod/rod v0.116.2
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/net v0.29.0
