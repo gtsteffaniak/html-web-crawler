@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -100,7 +99,8 @@ func TestExtractItems(t *testing.T) {
 			c := NewCrawler()
 			c.Selectors = *tt.s
 			c.mode = "collect"
-			c.compileCollections()
+			err := c.compileCollections()
+			assert.NoError(t, err)
 			for key, html := range tt.html {
 				assert.Contains(t, tt.want, key)
 				got, _ := c.extractItems(html, "https://www.domain.com")
@@ -127,7 +127,7 @@ func Benchmark_collectionSearch(b *testing.B) {
 		Ids:         []string{},
 	}
 	c.mode = "collect"
-	c.compileCollections()
+	_ = c.compileCollections() // Ignore error in benchmark
 	for i := 0; i < b.N; i++ {
 		_, _ = c.extractItems(testHtml, "https://www.domain.com")
 	}
@@ -140,10 +140,6 @@ func TestSingleSourceRunCollectHtml(t *testing.T) {
 	c.MaxDepth = 1
 	c.MaxLinks = 3
 	results, err := c.Collect("https://www.cnn.com/")
-	fmt.Println(err)
-	for _, result := range results {
-		fmt.Println(result)
-	}
 	assert.Equal(t, nil, err)
 	// With MaxLinks=3 and MaxDepth=1, we should get at least the starting URL plus some links
 	assert.GreaterOrEqual(t, len(results), 1, "Should collect at least the starting page URL")
