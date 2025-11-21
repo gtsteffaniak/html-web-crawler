@@ -128,8 +128,6 @@ html-web-crawler crawl \
 
 ## Include as a module in your go program
 
-Note: you can also see [ai-earthquake-tracker](https://github.com/gtsteffaniak/ai-earthquake-tracker) as an example.
-
 ```
 package main
 
