@@ -194,7 +194,6 @@ require (
 	github.com/yagipy/maintidx v1.0.0 // indirect
 	github.com/yeya24/promlinter v0.3.0 // indirect
 	github.com/ykadowak/zerologlint v0.1.5 // indirect
-	github.com/ysmood/fetchup v0.2.3 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/got v0.42.0 // indirect
 	github.com/ysmood/gson v0.7.3 // indirect
@@ -224,4 +223,3 @@ require (
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
-exclude github.com/ysmood/fetchup v0.5.3
