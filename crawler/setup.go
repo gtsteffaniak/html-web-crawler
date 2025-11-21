@@ -18,8 +18,10 @@ type Crawler struct {
 	pagesContent   map[string]string
 	regexPatterns  []regexp.Regexp
 	collectedItems []string
+	errors         []error
 	mutex          sync.Mutex
 	wg             sync.WaitGroup
+	semaphore      chan struct{} // Shared semaphore for concurrency control
 	mode           string
 	Silent         bool
 }
