@@ -43,7 +43,6 @@ func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 		c.pagesContent[url] = ""
 	}
 	for _, url := range pageURL {
-		url := url // Capture loop variable
 		c.wg.Go(func() {
 			err := c.recursiveCollect(url, 1)
 			if err != nil {
@@ -119,7 +118,6 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 			return nil
 		}
 	}
-	// No need to set pagesContent again - already set above
 	links, err := c.extractLinks(htmlContent)
 	if err != nil {
 		// HTML parsing errors are common with malformed HTML - log but continue
@@ -163,20 +161,20 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 			continue
 		}
 
-		// Acquire semaphore slot before starting goroutine
-		c.semaphore <- struct{}{}
-		urlToProcess := fullURL // Capture for goroutine
+		// Start goroutine, acquire semaphore inside to prevent deadlock
 		c.wg.Go(func() {
+			// Acquire semaphore slot (may block if all slots are taken)
+			c.semaphore <- struct{}{}
 			defer func() {
 				<-c.semaphore // Release the slot
 			}()
-			err := c.recursiveCollect(urlToProcess, currentDepth+1)
+			err := c.recursiveCollect(fullURL, currentDepth+1)
 			if err != nil {
 				c.mutex.Lock()
 				c.errors = append(c.errors, err)
 				c.mutex.Unlock()
 				if !c.Silent {
-					fmt.Printf("Error collecting %s: %v\n", urlToProcess, err)
+					fmt.Printf("Error collecting %s: %v\n", fullURL, err)
 				}
 			}
 		})

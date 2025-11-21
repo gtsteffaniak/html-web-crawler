@@ -22,7 +22,6 @@ func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 		c.pagesContent[url] = ""
 	}
 	for _, url := range pageURL {
-		url := url // Capture loop variable
 		c.wg.Go(func() {
 			err := c.recursiveCrawl(url, 1)
 			if err != nil {
@@ -128,20 +127,20 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 			continue
 		}
 
-		// Acquire semaphore slot before starting goroutine
-		c.semaphore <- struct{}{}
-		urlToProcess := fullURL // Capture for goroutine
+		// Start goroutine, acquire semaphore inside to prevent deadlock
 		c.wg.Go(func() {
+			// Acquire semaphore slot (may block if all slots are taken)
+			c.semaphore <- struct{}{}
 			defer func() {
 				<-c.semaphore // Release the slot
 			}()
-			err := c.recursiveCrawl(urlToProcess, currentDepth+1)
+			err := c.recursiveCrawl(fullURL, currentDepth+1)
 			if err != nil {
 				c.mutex.Lock()
 				c.errors = append(c.errors, err)
 				c.mutex.Unlock()
 				if !c.Silent {
-					fmt.Printf("Error crawling %s: %v\n", urlToProcess, err)
+					fmt.Printf("Error crawling %s: %v\n", fullURL, err)
 				}
 			}
 		})
