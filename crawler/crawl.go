@@ -11,18 +11,28 @@ import (
 func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 	c.mode = "crawl"
 	c.wg = sync.WaitGroup{}
+	c.errors = []error{} // Initialize errors slice
+	// Initialize shared semaphore for concurrency control
+	if c.Threads > 0 {
+		c.semaphore = make(chan struct{}, c.Threads)
+	} else {
+		c.semaphore = make(chan struct{}, 1) // Default to 1 if not set
+	}
 	for _, url := range c.Selectors.ExcludedUrls {
 		c.pagesContent[url] = ""
 	}
 	for _, url := range pageURL {
-		c.wg.Add(1) // Add to the wait group before starting the recursive crawl
-		go func(url string) {
-			defer c.wg.Done()
+		c.wg.Go(func() {
 			err := c.recursiveCrawl(url, 1)
 			if err != nil {
-				fmt.Printf("Error crawling %s: %v\n", url, err)
+				c.mutex.Lock()
+				c.errors = append(c.errors, err)
+				c.mutex.Unlock()
+				if !c.Silent {
+					fmt.Printf("Error crawling %s: %v\n", url, err)
+				}
 			}
-		}(url)
+		})
 	}
 	c.wg.Wait() // Wait for all goroutines to finish
 
@@ -32,6 +42,10 @@ func (c *Crawler) Crawl(pageURL ...string) (map[string]string, error) {
 		}
 	}
 
+	// Return the first error if any occurred (but still return the results)
+	if len(c.errors) > 0 {
+		return c.pagesContent, c.errors[0]
+	}
 	return c.pagesContent, nil
 }
 
@@ -42,24 +56,28 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 	}
 	useJavascript := c.JsDepth >= currentDepth
 
+	// Use single lock to check and set atomically to prevent race conditions
 	c.mutex.Lock()
 	if _, ok := c.pagesContent[pageURL]; ok {
 		c.mutex.Unlock()
 		return nil
 	}
-	if len(c.pagesContent) >= c.MaxLinks && c.MaxLinks != 0 {
+	if c.MaxLinks > 0 && len(c.pagesContent) >= c.MaxLinks {
 		c.mutex.Unlock()
 		return nil
 	}
-
-	// Update crawledData before recursive calls
+	// Mark as processing before releasing lock
 	c.pagesContent[pageURL] = ""
 	c.mutex.Unlock()
 
 	htmlContent, err := c.FetchHTML(pageURL, useJavascript)
 	if err != nil {
-		fmt.Println(err)
-		return nil // return nil on page load error because the site could be down
+		// Log transient HTTP errors but don't fail the entire crawl
+		// These are expected when scraping (403, 404, network issues, etc.)
+		if !c.Silent {
+			fmt.Printf("Warning: failed to fetch %s: %v\n", pageURL, err)
+		}
+		return nil // Continue crawling other pages
 	}
 
 	if currentDepth > 0 && len(c.Selectors.ContentPatterns) > 0 {
@@ -84,16 +102,20 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 
 	links, err := c.extractLinks(htmlContent)
 	if err != nil {
-		return err
+		// HTML parsing errors are common with malformed HTML - log but continue
+		if !c.Silent {
+			fmt.Printf("Warning: failed to extract links from %s: %v\n", pageURL, err)
+		}
+		return nil // Continue with other pages
 	}
 
-	// Limit the number of concurrent goroutines based on Threads
-	semaphore := make(chan struct{}, c.Threads)
+	// Process links with shared semaphore for concurrency control
 	for link, linkText := range links {
+		// Check if already processed (with lock)
 		c.mutex.Lock()
-		_, ok := c.pagesContent[link]
+		_, alreadyProcessed := c.pagesContent[link]
 		c.mutex.Unlock()
-		if ok {
+		if alreadyProcessed {
 			continue
 		}
 		if !c.linkTextCheck(link, linkText) {
@@ -101,20 +123,27 @@ func (c *Crawler) recursiveCrawl(pageURL string, currentDepth int) error {
 		}
 
 		fullURL := toAbsoluteURL(pageURL, link)
-		if c.validDomainCheck(fullURL) {
-			c.wg.Add(1)
-			semaphore <- struct{}{}
-			go func(url string) {
-				defer func() {
-					<-semaphore // Release the slot
-					c.wg.Done() // Decrement counter after goroutine finishes
-				}()
-				err := c.recursiveCrawl(url, currentDepth+1)
-				if err != nil {
-					fmt.Printf("Error crawling %s: %v\n", url, err)
-				}
-			}(fullURL)
+		if !c.validDomainCheck(fullURL) {
+			continue
 		}
+
+		// Start goroutine, acquire semaphore inside to prevent deadlock
+		c.wg.Go(func() {
+			// Acquire semaphore slot (may block if all slots are taken)
+			c.semaphore <- struct{}{}
+			defer func() {
+				<-c.semaphore // Release the slot
+			}()
+			err := c.recursiveCrawl(fullURL, currentDepth+1)
+			if err != nil {
+				c.mutex.Lock()
+				c.errors = append(c.errors, err)
+				c.mutex.Unlock()
+				if !c.Silent {
+					fmt.Printf("Error crawling %s: %v\n", fullURL, err)
+				}
+			}
+		})
 	}
 
 	return nil

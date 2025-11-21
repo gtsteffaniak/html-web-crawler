@@ -28,27 +28,43 @@ var collectionTypes = map[string]string{
 // Crawl is the public method that initializes the recursive crawling.
 func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 	c.mode = "collect"
-	c.compileCollections()
+	if err := c.compileCollections(); err != nil {
+		return nil, fmt.Errorf("failed to compile collection patterns: %w", err)
+	}
 	c.wg = sync.WaitGroup{}
+	c.errors = []error{} // Initialize errors slice
+	// Initialize shared semaphore for concurrency control
+	if c.Threads > 0 {
+		c.semaphore = make(chan struct{}, c.Threads)
+	} else {
+		c.semaphore = make(chan struct{}, 1) // Default to 1 if not set
+	}
 	for _, url := range c.Selectors.ExcludedUrls {
 		c.pagesContent[url] = ""
 	}
 	for _, url := range pageURL {
-		c.wg.Add(1) // Add to the wait group before starting the recursive crawl
-		go func(url string) {
-			defer c.wg.Done()
+		c.wg.Go(func() {
 			err := c.recursiveCollect(url, 1)
 			if err != nil {
-				fmt.Printf("Error crawling %s: %v\n", url, err)
+				c.mutex.Lock()
+				c.errors = append(c.errors, err)
+				c.mutex.Unlock()
+				if !c.Silent {
+					fmt.Printf("Error crawling %s: %v\n", url, err)
+				}
 			}
-		}(url)
+		})
 	}
 	c.wg.Wait() // Wait for all goroutines to finish
 	slices.Sort(c.collectedItems)
+	// Return the first error if any occurred
+	if len(c.errors) > 0 {
+		return slices.Compact(c.collectedItems), c.errors[0]
+	}
 	return slices.Compact(c.collectedItems), nil
 }
 
-func (c *Crawler) compileCollections() {
+func (c *Crawler) compileCollections() error {
 	for _, collectionType := range c.Selectors.Collections {
 		pattern, exists := collectionTypes[collectionType]
 		if !exists {
@@ -56,10 +72,11 @@ func (c *Crawler) compileCollections() {
 		}
 		regex, err := regexp.Compile(pattern)
 		if err != nil {
-			fmt.Println("Error compiling regex pattern")
+			return fmt.Errorf("error compiling regex pattern for collection type '%s': %w", collectionType, err)
 		}
 		c.regexPatterns = append(c.regexPatterns, *regex)
 	}
+	return nil
 }
 
 // recursiveCrawl is a private method that performs the recursive crawling, respecting MaxDepth.
@@ -68,22 +85,27 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 	if currentDepth > c.MaxDepth {
 		return nil
 	}
+	// Use single lock to check and set atomically to prevent race conditions
 	c.mutex.Lock()
 	if _, ok := c.pagesContent[pageURL]; ok {
 		c.mutex.Unlock()
 		return nil
 	}
-	if len(c.pagesContent) >= c.MaxLinks && c.MaxLinks != 0 {
+	if c.MaxLinks > 0 && len(c.pagesContent) >= c.MaxLinks {
 		c.mutex.Unlock()
 		return nil
 	}
-	// Update crawledData before recursive calls
+	// Mark as processing before releasing lock
 	c.pagesContent[pageURL] = ""
 	c.mutex.Unlock()
 	htmlContent, err := c.FetchHTML(pageURL, useJavascript)
-
 	if err != nil {
-		return nil // return nil on page load error because the site could be down
+		// Log transient HTTP errors but don't fail the entire crawl
+		// These are expected when scraping (403, 404, network issues, etc.)
+		if !c.Silent {
+			fmt.Printf("Warning: failed to fetch %s: %v\n", pageURL, err)
+		}
+		return nil // Continue crawling other pages
 	}
 	if currentDepth > 0 && len(c.Selectors.ContentPatterns) > 0 {
 		matchContentPattern := false
@@ -96,27 +118,38 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 			return nil
 		}
 	}
-	c.mutex.Lock()
-	c.pagesContent[pageURL] = ""
-	c.mutex.Unlock()
 	links, err := c.extractLinks(htmlContent)
 	if err != nil {
-		return err
+		// HTML parsing errors are common with malformed HTML - log but continue
+		if !c.Silent {
+			fmt.Printf("Warning: failed to extract links from %s: %v\n", pageURL, err)
+		}
+		return nil // Continue with other pages
 	}
 	items, err := c.extractItems(htmlContent, pageURL)
 	if err != nil {
-		return err
+		// HTML parsing errors are common - log but continue
+		if !c.Silent {
+			fmt.Printf("Warning: failed to extract items from %s: %v\n", pageURL, err)
+		}
+		return nil // Continue with other pages
 	}
+	// Batch mutex operations for better performance
 	c.mutex.Lock()
 	c.collectedItems = append(c.collectedItems, items...)
+	// If "html" is in Collections, also collect the page URL itself
+	if slices.Contains(c.Selectors.Collections, "html") {
+		c.collectedItems = append(c.collectedItems, pageURL)
+	}
 	c.mutex.Unlock()
-	// Limit the number of concurrent goroutines based on Threads
-	semaphore := make(chan struct{}, c.Threads)
+
+	// Process links with shared semaphore for concurrency control
 	for link, linkText := range links {
+		// Check if already processed (with lock)
 		c.mutex.Lock()
-		_, ok := c.pagesContent[link]
+		_, alreadyProcessed := c.pagesContent[link]
 		c.mutex.Unlock()
-		if ok {
+		if alreadyProcessed {
 			continue
 		}
 		if !c.linkTextCheck(link, linkText) {
@@ -124,21 +157,27 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 		}
 
 		fullURL := toAbsoluteURL(pageURL, link)
-		if c.validDomainCheck(fullURL) {
-			c.wg.Add(1)
-			semaphore <- struct{}{}
-			go func(url string) {
-				defer func() {
-					<-semaphore // Release the slot
-					c.wg.Done() // Decrement counter after goroutine finishes
-				}()
-				err := c.recursiveCollect(url, currentDepth+1)
-				if err != nil {
-					fmt.Printf("Error collecting %s: %v\n", url, err)
-				}
-			}(fullURL)
+		if !c.validDomainCheck(fullURL) {
+			continue
 		}
-	}
 
+		// Start goroutine, acquire semaphore inside to prevent deadlock
+		c.wg.Go(func() {
+			// Acquire semaphore slot (may block if all slots are taken)
+			c.semaphore <- struct{}{}
+			defer func() {
+				<-c.semaphore // Release the slot
+			}()
+			err := c.recursiveCollect(fullURL, currentDepth+1)
+			if err != nil {
+				c.mutex.Lock()
+				c.errors = append(c.errors, err)
+				c.mutex.Unlock()
+				if !c.Silent {
+					fmt.Printf("Error collecting %s: %v\n", fullURL, err)
+				}
+			}
+		})
+	}
 	return nil
 }

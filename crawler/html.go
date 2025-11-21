@@ -26,22 +26,27 @@ func (c *Crawler) FetchHTML(pageURL string, javascriptEnabled bool) (string, err
 	if javascriptEnabled {
 		html, err := browser.GetHtmlContent(pageURL)
 		if err != nil {
-			fmt.Println(err)
+			// Browser errors are returned to caller for handling
+			// Caller will decide if it's transient or critical
+			return html, err
 		}
-		return html, err
-	} else {
-		return c.requestPage(pageURL)
+		return html, nil
 	}
+	return c.requestPage(pageURL)
 }
 
 func (c *Crawler) requestPage(pageURL string) (string, error) {
 	resp, err := http.Get(pageURL)
 	if err != nil {
-		return "", err
+		// Network errors are transient - return for caller to handle
+		return "", fmt.Errorf("network error fetching %s: %w", pageURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() // Ignore close errors on HTTP response body
+	}()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("status code error: %d %s", resp.StatusCode, resp.Status)
+		// HTTP errors (403, 404, 500, etc.) are transient in scraping context
+		return "", fmt.Errorf("HTTP %d %s for %s", resp.StatusCode, resp.Status, pageURL)
 	}
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -180,7 +185,11 @@ func (c *Crawler) performSearch(n *html.Node, pageUrl string) []string {
 	items := []string{}
 	htmlString, err := nodeToString(n)
 	if err != nil {
-		fmt.Println("error converting node to string", err)
+		// Node rendering errors are edge cases - log but continue
+		if !c.Silent {
+			fmt.Printf("Warning: error converting node to string: %v\n", err)
+		}
+		return items // Return empty slice, continue processing other nodes
 	}
 	for _, re := range c.regexPatterns {
 		foundItems := re.FindAllString(htmlString, -1)
