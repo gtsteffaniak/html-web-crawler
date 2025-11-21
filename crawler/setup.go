@@ -21,6 +21,7 @@ type Crawler struct {
 	errors         []error
 	mutex          sync.Mutex
 	wg             sync.WaitGroup
+	semaphore      chan struct{} // Shared semaphore for concurrency control
 	mode           string
 	Silent         bool
 }

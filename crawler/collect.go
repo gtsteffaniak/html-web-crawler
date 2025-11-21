@@ -33,21 +33,27 @@ func (c *Crawler) Collect(pageURL ...string) ([]string, error) {
 	}
 	c.wg = sync.WaitGroup{}
 	c.errors = []error{} // Initialize errors slice
+	// Initialize shared semaphore for concurrency control
+	if c.Threads > 0 {
+		c.semaphore = make(chan struct{}, c.Threads)
+	} else {
+		c.semaphore = make(chan struct{}, 1) // Default to 1 if not set
+	}
 	for _, url := range c.Selectors.ExcludedUrls {
 		c.pagesContent[url] = ""
 	}
 	for _, url := range pageURL {
-		c.wg.Add(1) // Add to the wait group before starting the recursive crawl
-		go func(url string) {
-			defer c.wg.Done()
+		c.wg.Go(func() {
 			err := c.recursiveCollect(url, 1)
 			if err != nil {
 				c.mutex.Lock()
 				c.errors = append(c.errors, err)
 				c.mutex.Unlock()
-				fmt.Printf("Error crawling %s: %v\n", url, err)
+				if !c.Silent {
+					fmt.Printf("Error crawling %s: %v\n", url, err)
+				}
 			}
-		}(url)
+		})
 	}
 	c.wg.Wait() // Wait for all goroutines to finish
 	slices.Sort(c.collectedItems)
@@ -79,16 +85,17 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 	if currentDepth > c.MaxDepth {
 		return nil
 	}
+	// Use single lock to check and set atomically to prevent race conditions
 	c.mutex.Lock()
 	if _, ok := c.pagesContent[pageURL]; ok {
 		c.mutex.Unlock()
 		return nil
 	}
-	if len(c.pagesContent) >= c.MaxLinks && c.MaxLinks != 0 {
+	if c.MaxLinks > 0 && len(c.pagesContent) >= c.MaxLinks {
 		c.mutex.Unlock()
 		return nil
 	}
-	// Update crawledData before recursive calls
+	// Mark as processing before releasing lock
 	c.pagesContent[pageURL] = ""
 	c.mutex.Unlock()
 	htmlContent, err := c.FetchHTML(pageURL, useJavascript)
@@ -111,9 +118,6 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 			return nil
 		}
 	}
-	c.mutex.Lock()
-	c.pagesContent[pageURL] = ""
-	c.mutex.Unlock()
 	links, err := c.extractLinks(htmlContent)
 	if err != nil {
 		// HTML parsing errors are common with malformed HTML - log but continue
@@ -130,6 +134,7 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 		}
 		return nil // Continue with other pages
 	}
+	// Batch mutex operations for better performance
 	c.mutex.Lock()
 	c.collectedItems = append(c.collectedItems, items...)
 	// If "html" is in Collections, also collect the page URL itself
@@ -137,13 +142,14 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 		c.collectedItems = append(c.collectedItems, pageURL)
 	}
 	c.mutex.Unlock()
-	// Limit the number of concurrent goroutines based on Threads
-	semaphore := make(chan struct{}, c.Threads)
+
+	// Process links with shared semaphore for concurrency control
 	for link, linkText := range links {
+		// Check if already processed (with lock)
 		c.mutex.Lock()
-		_, ok := c.pagesContent[link]
+		_, alreadyProcessed := c.pagesContent[link]
 		c.mutex.Unlock()
-		if ok {
+		if alreadyProcessed {
 			continue
 		}
 		if !c.linkTextCheck(link, linkText) {
@@ -151,23 +157,27 @@ func (c *Crawler) recursiveCollect(pageURL string, currentDepth int) error {
 		}
 
 		fullURL := toAbsoluteURL(pageURL, link)
-		if c.validDomainCheck(fullURL) {
-			c.wg.Add(1)
-			semaphore <- struct{}{}
-			go func(url string) {
-				defer func() {
-					<-semaphore // Release the slot
-					c.wg.Done() // Decrement counter after goroutine finishes
-				}()
-				err := c.recursiveCollect(url, currentDepth+1)
-				if err != nil {
-					c.mutex.Lock()
-					c.errors = append(c.errors, err)
-					c.mutex.Unlock()
-					fmt.Printf("Error collecting %s: %v\n", url, err)
-				}
-			}(fullURL)
+		if !c.validDomainCheck(fullURL) {
+			continue
 		}
+
+		// Start goroutine, acquire semaphore inside to prevent deadlock
+		c.wg.Go(func() {
+			// Acquire semaphore slot (may block if all slots are taken)
+			c.semaphore <- struct{}{}
+			defer func() {
+				<-c.semaphore // Release the slot
+			}()
+			err := c.recursiveCollect(fullURL, currentDepth+1)
+			if err != nil {
+				c.mutex.Lock()
+				c.errors = append(c.errors, err)
+				c.mutex.Unlock()
+				if !c.Silent {
+					fmt.Printf("Error collecting %s: %v\n", fullURL, err)
+				}
+			}
+		})
 	}
 	return nil
 }
