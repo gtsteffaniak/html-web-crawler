@@ -223,5 +223,3 @@ require (
 )
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
-
-exclude github.com/ysmood/fetchup v0.5.3
